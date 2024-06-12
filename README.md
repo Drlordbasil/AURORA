@@ -49,7 +49,7 @@ The chatbot will initialize and prompt you to send a message. You can interact w
 - `brain.py`: Contains the core logic of the chatbot, including the `Brain` class and its methods for processing user prompts, generating responses, and managing memory
 - `final_agent_persona.py`: Defines the `FinalAgentPersona` class, which represents the persona of AURORA and contains information about its name, role, description, and user information
 - `main.py`: The entry point of the application, responsible for initializing the chatbot and starting the conversation loop
-- `memory.py`: Implements the `MemoryManager` class for loading, saving, and retrieving relevant conversation history using ChromaDB
+
 - `utilities.py`: Contains utility functions for setting up logging and initializing the embedding collection
 
 ## Future Enhancements
