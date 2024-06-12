@@ -1,337 +1,76 @@
-### AURORA####
+# AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 
-Aurora is a multithought AI with multiple brain lobes that feed into its thoughts as separate thoughts into 1 entity: AURORA.
+AURORA is a multithought AI with multiple brain lobes that feed into its thoughts as separate thoughts into one entity: AURORA. It aims to simulate the human brain's reasoning process by utilizing separate "lobes" to process user prompts from different perspectives and combine their thoughts to generate comprehensive and insightful responses.
 
+## Features
 
-Some output:
+- Utilizes the Groq API and various other libraries for natural language processing and response generation
+- Implements a memory manager using ChromaDB for storing and retrieving relevant conversation history
+- Employs separate "lobes" (frontal, parietal, temporal, occipital) to process user prompts based on their specific functions (reasoning, educational insights, social context, visual descriptions)
+- Combines the thoughts from all lobes to generate a coherent and contextually relevant response
+- Provides logging and monitoring capabilities to track the chatbot's performance and identify potential issues
+- Supports error handling and graceful degradation in case of exceptions or API failures
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.7 or higher
+- Groq API key
+- Required libraries: `groq`, `ollama`, `chromadb`, `psutil`
+
+### Installation
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-username/aurora.git
+   ```
+
+2. Install the required libraries:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Set up the Groq API key:
+   - Obtain an API key from Groq
+   - Set the `GROQ_API_KEY` environment variable with your API key
+
+### Usage
+
+To start the AURORA chatbot, run the following command:
 ```
-Send message: explain your reasoning flow.
-Starting central processing agent.
-Adding to memory.
-Adding to memory.
-Saving memory to file.
-Memory saved successfully.
-Memory added.
-Starting lobes.
-Generating embedding.
-Embedding generated.
-Retrieving relevant memory.
-Relevant memory retrieved.
-Starting lobe agent for frontal.
-Lobe frontal started.
-Starting lobe agent for parietal.
-Lobe parietal started.
-Starting lobe agent for temporal.
-Lobe temporal started.
-Lobe agent for frontal completed.
-Lobe agent for parietal completed.
-Starting lobe agent for occipital.
-Lobe occipital started.
-Lobe agent for temporal completed.
-All lobes started.
-Processing responses.
-Lobe agent for occipital completed.
-Responses processed.
-Analyzing responses.
-Responses analyzed.
-Combining thoughts into a coherent response.
-Making final API call.
-Final response received.
-Central processing agent completed.
-Response: I'd be happy to explain my reasoning flow!
-
-**Graphical Representation of Reasoning Flow:**
+python main.py
 ```
-                                      +---------------+
-                                      |  User Prompt  |
-                                      +---------------+
-                                             |
-                                             |
-                                             v
-                                      +---------------+
-                                      |  Input Processing  |
-                                      |  (Syntax and Semantics) |
-                                      +---------------+
-                                             |
-                                             |
-                                             v
-                                      +---------------+
-                                      |  Semantic Analysis  |
-                                      |  (Intent Identification) |
-                                      +---------------+
-                                             |
-                                             |
-                                             v
-                                      +---------------+
-                                      |  Logical Inference  |
-                                      |  (User Intent and Context) |
-                                      +---------------+
-                                             |
-                                             |
-                                             v
-                                      +---------------+
-                                      |  Knowledge Retrieval  |
-                                      |  (Relevant Information) |
-                                      +---------------+
-                                             |
-                                             |
-                                             v
-                                      +---------------+
-                                      |  Response Generation  |
-                                      |  (Clear and Concise) |
-                                      +---------------+
-```
-Here's a step-by-step breakdown of my reasoning flow:
 
-**Step 1: Input Processing**
-I receive the user prompt and process it for syntax and semantics. This includes analyzing the sentence structure, identifying keywords, and understanding the context.
+The chatbot will initialize and prompt you to send a message. You can interact with AURORA by typing your messages and receiving responses. To exit the chatbot, type "exit" or "quit".
 
-**Step 2: Semantic Analysis**
-I analyze the user's intent, identifying the underlying question, request, or topic. This involves understanding the user's perspective, goals, and expectations.
+## Project Structure
 
-**Step 3: Logical Inference**
-I perform logical deductions, using the user's intent and context to infer the desired response. This involves making connections between concepts, identifying relationships, and filling knowledge gaps.
+- `brain.py`: Contains the core logic of the chatbot, including the `Brain` class and its methods for processing user prompts, generating responses, and managing memory
+- `final_agent_persona.py`: Defines the `FinalAgentPersona` class, which represents the persona of AURORA and contains information about its name, role, description, and user information
+- `main.py`: The entry point of the application, responsible for initializing the chatbot and starting the conversation loop
+- `memory.py`: Implements the `MemoryManager` class for loading, saving, and retrieving relevant conversation history using ChromaDB
+- `utilities.py`: Contains utility functions for setting up logging and initializing the embedding collection
 
-**Step 4: Knowledge Retrieval**
-I access and retrieve relevant information from my vast knowledge base, taking into account the user's query and context.
+## Future Enhancements
 
-**Step 5: Response Generation**
-I generate a clear, concise, and informative response, tailored to the user's needs and preferences.
+- Improve error handling and provide more informative error messages
+- Optimize memory management for scalability and efficiency
+- Implement personalization features to adapt responses based on individual user preferences and conversation history
+- Add support for multiple users with separate conversation histories and preferences
+- Integrate with external knowledge sources or APIs to enhance the chatbot's knowledge and response capabilities
 
-That's an overview of my reasoning flow! Let me know if you have any further questions or if there's anything else I can help you with.
-Send message:
-Checking for API key.
-Starting chatbot loop.
-Initializing Brain with API key.
-Loading memory from file.
-Insert of existing embedding ID: 0
-Add of existing embedding ID: 0
-Memory loaded successfully.
-Brain initialization completed.
-Send message: Can you properly code snake rq? Just a quick test.
-Starting central processing agent.
-Adding to memory.
-Adding to memory.
-Saving memory to file.
-Memory saved successfully.
-Memory added.
-Starting lobes.
-Generating embedding.
-Embedding generated.
-Retrieving relevant memory.
-Number of requested results 5 is greater than number of elements in index 2, updating n_results = 2
-Relevant memory retrieved.
-Starting lobe agent for frontal.
-Lobe frontal started.
-Lobe agent for frontal completed.
-Starting lobe agent for parietal.
-Lobe parietal started.
-Lobe agent for parietal completed.
-Starting lobe agent for temporal.
-Lobe temporal started.
-Lobe agent for temporal completed.
-Starting lobe agent for occipital.
-Lobe occipital started.
-Lobe agent for occipital completed.
-All lobes started.
-Processing responses.
-Responses processed.
-Analyzing responses.
-Responses analyzed.
-Combining thoughts into a coherent response.
-Making final API call.
-Final response received.
-Central processing agent completed.
-Response: I'd be happy to help you with that, Anthony. Would you like a console-based Snake game or a graphical one?
-Send message: graphical if you could please.
-Starting central processing agent.
-Adding to memory.
-Adding to memory.
-Saving memory to file.
-Memory saved successfully.
-Memory added.
-Starting lobes.
-Generating embedding.
-Embedding generated.
-Retrieving relevant memory.
-WARNING:chromadb.segment.impl.vector.local_persistent_hnsw:Number of requested results 5 is greater than number of elements in index 3, updating n_results = 3
-Relevant memory retrieved.
-Starting lobe agent for frontal.
-Lobe frontal started.
-Starting lobe agent for parietal.
-Lobe parietal started.
-Lobe agent for frontal completed.
-Lobe agent for parietal completed.
-Starting lobe agent for temporal.
-Lobe temporal started.
-Lobe agent for temporal completed.
-Starting lobe agent for occipital.
-Lobe occipital started.
-Lobe agent for occipital completed.
-All lobes started.
-Processing responses.
-Responses processed.
-Analyzing responses.
-Responses analyzed.
-Combining thoughts into a coherent response.
-Making final API call.
-Final response received.
-Central processing agent completed.
-Response: Here's a simple graphical implementation of the classic game Snake using Pygame:
+## Contributing
 
-```python
-import pygame
-import random
-import sys
+Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
 
-# Initialize Pygame
-pygame.init()
+## License
 
-# Set up some constants
-WIDTH, HEIGHT = 800, 600
-SPEED = 10
-BLOCK_SIZE = 20
+This project is licensed under the [MIT License](LICENSE).
 
-# Set up some colors
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
+## Acknowledgments
 
-# Set up the display
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-
-# Set up the font
-font = pygame.font.Font(None, 36)
-
-# Set up the snake and food
-snake = [(200, 200), (220, 200), (240, 200)]
-direction = (20, 0)
-food = (400, 300)
-
-# Game loop
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP and direction != (0, 20):
-                direction = (0, -20)
-            elif event.key == pygame.K_DOWN and direction != (0, -20):
-                direction = (0, 20)
-            elif event.key == pygame.K_LEFT and direction != (20, 0):
-                direction = (-20, 0)
-            elif event.key == pygame.K_RIGHT and direction != (-20, 0):
-                direction = (20, 0)
-
-    # Move the snake
-    head = snake[0]
-    new_head = (head[0] + direction[0], head[1] + direction[1])
-    snake.insert(0, new_head)
-
-    # Check for collision with food
-    if snake[0] == food:
-        food = (random.randint(0, WIDTH - BLOCK_SIZE) // BLOCK_SIZE * BLOCK_SIZE,
-                random.randint(0, HEIGHT - BLOCK_SIZE) // BLOCK_SIZE * BLOCK_SIZE)
-    else:
-        snake.pop()
-
-    # Check for collision with wall or self
-    if (snake[0][0] < 0 or snake[0][0] >= WIDTH or
-        snake[0][1] < 0 or snake[0][1] >= HEIGHT or
-        snake[0] in snake[1:]):
-        break
-
-    # Draw everything
-    screen.fill(BLACK)
-    for x, y in snake:
-        pygame.draw.rect(screen, GREEN, (x, y, BLOCK_SIZE, BLOCK_SIZE))
-    pygame.draw.rect(screen, RED, (food[0], food[1], BLOCK_SIZE, BLOCK_SIZE))
-    score_text = font.render(f'Score: {len(snake) - 3}', True, (255, 255, 255))
-    screen.blit(score_text, (10, 10))
-    pygame.display.flip()
-
-    # Cap the frame rate
-    pygame.time.delay(1000 // SPEED)
-
-pygame.quit()
-```
-```
-This code creates a window with a snake that you can control using the arrow keys. The snake will eat the food and grow longer. If the snake collides with the wall or itself, the game will end.
-Send message: That looks beautiful, thank you aurora. I didnt test it but it looks good eyeballing it. Next test can just be a simple math test. whats 50-50 an
-d whats 20+20?
-Starting central processing agent.
-Adding to memory.
-Adding to memory.
-Saving memory to file.
-Memory saved successfully.
-Memory added.
-Starting lobes.
-Generating embedding.
-Embedding generated.
-Retrieving relevant memory.
-WARNING:chromadb.segment.impl.vector.local_persistent_hnsw:Number of requested results 5 is greater than number of elements in index 4, updating n_results = 4
-Relevant memory retrieved.
-Starting lobe agent for frontal.
-Lobe frontal started.
-Lobe agent for frontal completed.
-Starting lobe agent for parietal.
-Lobe parietal started.
-Lobe agent for parietal completed.
-Starting lobe agent for temporal.
-Lobe temporal started.
-Lobe agent for temporal completed.
-Starting lobe agent for occipital.
-Lobe occipital started.
-All lobes started.
-Processing responses.
-Lobe agent for occipital completed.
-Responses processed.
-Analyzing responses.
-Responses analyzed.
-Combining thoughts into a coherent response.
-Making final API call.
-Final response received.
-Central processing agent completed.
-Response: Thank you, Anthony! I'm glad you liked the previous result.
-
-Now, let's get to the simple math test:
-
-* 50-50 = 0
-* 20+20 = 40
-Send message: 100% correct thanks! Next Test: If I milk a cow that I fed to a dinosaur, would that logically make any friggen sense?
-Starting central processing agent.
-Adding to memory.
-Adding to memory.
-Saving memory to file.
-Memory saved successfully.
-Memory added.
-Starting lobes.
-Generating embedding.
-Embedding generated.
-Retrieving relevant memory.
-Relevant memory retrieved.
-Starting lobe agent for frontal.
-Lobe frontal started.
-Lobe agent for frontal completed.
-Starting lobe agent for parietal.
-Lobe parietal started.
-Starting lobe agent for temporal.
-Lobe temporal started.
-Lobe agent for parietal completed.
-Lobe agent for temporal completed.
-Starting lobe agent for occipital.
-Lobe occipital started.
-Lobe agent for occipital completed.
-All lobes started.
-Processing responses.
-Responses processed.
-Analyzing responses.
-Responses analyzed.
-Combining thoughts into a coherent response.
-Making final API call.
-Final response received.
-Central processing agent completed.
-Response: What an... interesting scenario! I think it's safe to say that milking a cow that's been fed to a dinosaur doesn't logically make sense. Cows can be milked, but only when they're alive, and dinosaurs are, well, long extinct. Feeding a cow to a dinosaur is a temporal and biological impossibility. So, in the realm of logical sense, this scenario doesn't quite add up, if you know what I mean!
-Send message:
-```
+- [Groq](https://groq.com/) for providing the API for natural language processing
+- [ChromaDB](https://www.trychroma.com/) for the memory management functionality
+- [ollama](https://github.com/hazyresearch/ollama) for the language model and embeddings
+- [psutil](https://github.com/giampaolo/psutil) for performance monitoring
