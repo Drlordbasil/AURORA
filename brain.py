@@ -1,6 +1,3 @@
-# brain.py
-
-import os
 import threading
 from queue import Queue
 from groq import Groq
@@ -8,9 +5,10 @@ import logging
 import ollama
 import chromadb
 import time
+import json
 from utilities import setup_logging, setup_embedding_collection
 from final_agent_persona import FinalAgentPersona
-from function_calling import FunctionCalling  # Import FunctionCalling
+from function_calling import FunctionCalling
 
 class Brain:
     """
@@ -28,9 +26,9 @@ class Brain:
         """
         print("Initializing Brain with API key.")
         self.client = Groq(api_key=api_key)
-        self.function_caller = FunctionCalling(api_key, self.add_to_memory)  # Initialize FunctionCalling with add_to_memory
         self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
+        self.function_calling = FunctionCalling(api_key)
         self.lobes = {
             "frontal": "You are the frontal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for analyzing user prompts logically and providing coherent, well-reasoned responses. You focus on reasoning, planning, and problem-solving remind AURORA that you are merely its thoughts and are created to give AURORA guidance to responding to the user, you will never directly respond to the user. You will guide AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sends AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
             "parietal": "You are the parietal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for providing educational insights based on user prompts. You focus on processing sensory information and understanding spatial orientation for AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sent AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
@@ -122,9 +120,12 @@ class Brain:
             messages = [
                 {
                     "role": "system",
-                    "content": f"You are only a {self.lobes[lobe_name]}, it doesnt mean you are not important though, you guide aurora as the human brain guides the body.",
+                    "content": f"You are the {lobe_name} lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent). Your role is to provide verbose guidance to AURORA based on the user prompt and memory context. Analyze the user prompt from the perspective of the {lobe_name} lobe and offer detailed insights, suggestions, and reasoning to assist AURORA in formulating a coherent response. Remember, you are an integral part of AURORA's thought process, and your input will shape AURORA's final response.",
                 },
-                {"role": "user", "content": f"[user_prompt]Message from the user:{user_prompt}[/user_prompt] {memory_context} ### only provide thoughts to give to Aurora as Auroras inner thoughts ONLY ###"},
+                {
+                    "role": "user",
+                    "content": f"[user_prompt]Message from the user: {user_prompt}[/user_prompt]\n\nMemory Context: {memory_context}\n\n### Provide verbose guidance to AURORA as its inner thoughts. Analyze the user prompt from the perspective of the {lobe_name} lobe and offer detailed insights, suggestions, and reasoning. ###",
+                },
             ]
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
@@ -219,16 +220,16 @@ class Brain:
             str: The final coherent response.
         """
         print("Combining thoughts into a coherent response.")
-        combined_thoughts = " ".join(f"[{lobe}] {response}" for lobe, response in aggregated_responses.items())
+        combined_thoughts = "\n".join(f"[{lobe}] {response}" for lobe, response in aggregated_responses.items())
 
         messages = [
             {
                 "role": "system",
-                "content": f"You are AURORA, an entity that uses its lobes like a human does subconsciously. [lobe_context]##These are your thoughts, don't reply to them## {combined_thoughts} {FinalAgentPersona.user_info}[/lobe_context] Remember to keep your thoughts to yourself.",
+                "content": f"You are AURORA, an entity that uses its lobes like a human does subconsciously. Consider the thoughts from all your lobes and use them to formulate a coherent response to the user prompt.\n\n[lobe_context]{combined_thoughts}[/lobe_context]\n\n{FinalAgentPersona.user_info}",
             },
             {
                 "role": "user",
-                "content": f"[user_prompt]{user_prompt}[/user_prompt] Only respond to what this user prompt is asking for. Dont include thoughts or past questions unless relevant.",
+                "content": f"[user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively.",
             }
         ]
 
@@ -246,6 +247,82 @@ class Brain:
             print(error_message)
             return f"Error: {e}"
 
+    def aurora_run_conversation(self, user_prompt):
+        """
+        Run a conversation with the assistant to handle tool calls.
+
+        Args:
+            user_prompt (str): The user prompt to be processed.
+
+        Returns:
+            str: The final response generated after processing the prompt.
+        """
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a function calling LLM that uses the data extracted from various functions to provide detailed responses to the user."
+            },
+            {
+                "role": "user",
+                "content": user_prompt,
+            }
+        ]
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "chat_with_tool_use_agent",
+                    "description": "Send a prompt to the tool-use agent to handle tool-specific tasks and return the result.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "prompt": {
+                                "type": "string",
+                                "description": "The prompt to send to the tool-use agent.",
+                            }
+                        },
+                        "required": ["prompt"],
+                    },
+                },
+            }
+        ]
+        response = self.client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            max_tokens=4096
+        )
+
+        response_message = response.choices[0].message
+        tool_calls = response_message.tool_calls
+        if tool_calls:
+            available_functions = {
+                "chat_with_tool_use_agent": self.function_calling.run_conversation,
+            }
+            messages.append(response_message)
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_to_call = available_functions[function_name]
+                function_args = json.loads(tool_call.function.arguments)
+                function_response = function_to_call(function_args['prompt'])
+                messages.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": function_response,
+                    }
+                )
+                time.sleep(10)  # Sleep for 10 seconds between function calls
+            second_response = self.client.chat.completions.create(
+                model="llama3-70b-8192",
+                messages=messages
+            )
+            time.sleep(10)  # Sleep for 10 seconds between responses
+            return second_response.choices[0].message.content
+        return response_message.content
+
     def central_processing_agent(self, prompt):
         """
         The central processing function that coordinates the entire process of handling the user prompt.
@@ -258,28 +335,27 @@ class Brain:
         """
         print("Starting central processing agent.")
         try:
-            self.add_to_memory(prompt)
+            # Run the function calling conversation first
+            fc_response = self.aurora_run_conversation(prompt)
+            self.add_to_memory(fc_response)  # Save the tool response to memory
             time.sleep(1)  # Additional sleep to avoid rate limits
-            self.start_lobes(prompt)
+
+            # Generate embedding for the tool response
+            fc_response_embedding = self.generate_embedding(fc_response)
+            time.sleep(1)  # Additional sleep to avoid rate limits
+
+            # Retrieve memory using the tool response embedding
+            memory_context = self.retrieve_relevant_memory(fc_response_embedding)
+            memory_context = " ".join(memory_context)[:1000]  # Limit context to 1,000 tokens
+
+            # Process the normal flow after the function call
+            self.start_lobes(memory_context)
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
             time.sleep(1)  # Additional sleep to ensure rate limits are respected
-            thoughts = self.final_agent(prompt, analyzed_responses)
-
-            # Integrate FunctionCalling to enhance final response
-            final_response = self.function_caller.run_conversation(thoughts)
-
+            final_thought = self.final_agent(prompt, analyzed_responses)
             print("Central processing agent completed.")
-            return final_response
+            return final_thought
         except Exception as e:
             print(f"Error in central_processing_agent: {e}")
             return f"Error: {e}"
-
-if __name__ == "__main__":
-    api_key = os.getenv('GROQ_API_KEY')
-    if not api_key:
-        print("Error: GROQ_API_KEY environment variable not set.")
-    else:
-        brain = Brain(api_key)
-        user_prompt = "Tell me about the latest advancements in AI."
-        print(brain.central_processing_agent(user_prompt))
