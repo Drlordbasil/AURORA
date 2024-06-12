@@ -213,6 +213,7 @@ if __name__ == "__main__":
     api_key = os.getenv('GROQ_API_KEY')
     if not api_key:
         print("Error: GROQ_API_KEY environment variable not set.")
+        api_key = input("Enter your GROQ API key: ")
     else:
         from brain import Brain  # Assuming we have a Brain instance to pass the add_to_memory method
         brain_instance = Brain(api_key)
