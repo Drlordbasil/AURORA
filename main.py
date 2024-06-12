@@ -7,9 +7,42 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.clock import Clock
+from kivy.utils import get_color_from_hex
 from brain import Brain
+
+class BubbleLabel(BoxLayout):
+    def __init__(self, text, background_color, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "horizontal"
+        self.size_hint_y = None
+        self.padding = 10
+        self.spacing = 5
+
+        with self.canvas.before:
+            Color(*background_color)
+            self.rect = RoundedRectangle(size=self.size, pos=self.pos, radius=[10])
+            self.bind(size=self._update_rect, pos=self._update_rect)
+
+        label = Label(
+            text=text,
+            size_hint_y=None,
+            halign="left",
+            valign="middle",
+            text_size=(600, None),  # Set a maximum width for text wrapping
+            font_size="18sp",
+            color=(1, 1, 1, 1),
+            bold=True,
+        )
+        label.bind(texture_size=label.setter("size"))
+
+        self.add_widget(label)
+        self.bind(minimum_height=self.setter("height"))
+
+    def _update_rect(self, instance, value):
+        self.rect.size = instance.size
+        self.rect.pos = instance.pos
 
 class ChatbotApp(App):
     def build(self):
@@ -23,7 +56,7 @@ class ChatbotApp(App):
         self.root = BoxLayout(orientation='vertical', padding=10, spacing=10)
         
         self.chat_display = ScrollView(size_hint=(1, 0.8))
-        self.chat_content = BoxLayout(orientation='vertical', size_hint_y=None)
+        self.chat_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10, padding=10)
         self.chat_content.bind(minimum_height=self.chat_content.setter('height'))
         self.chat_display.add_widget(self.chat_content)
         
@@ -63,21 +96,21 @@ class ChatbotApp(App):
         if prompt.lower() in ["exit", "quit"]:
             App.get_running_app().stop()
         else:
-            self.display_message(f"You: {prompt}")
+            self.display_message(f"You: {prompt}", user=True)
             threading.Thread(target=self.send_message, args=(prompt,)).start()
             self.prompt_input.text = ""
 
     def send_message(self, prompt):
         try:
             response = self.brain.central_processing_agent(prompt)
-            Clock.schedule_once(lambda dt: self.display_message(f"AURORA: {response}"), 0)
+            Clock.schedule_once(lambda dt: self.display_message(f"AURORA: {response}", user=False), 0)
         except Exception as e:
-            Clock.schedule_once(lambda dt: self.display_message(f"Error processing prompt: {e}"), 0)
+            Clock.schedule_once(lambda dt: self.display_message(f"Error processing prompt: {e}", user=False), 0)
 
-    def display_message(self, message):
-        label = Label(text=message, size_hint_y=None, halign='left', text_size=(self.chat_display.width - 20, None))
-        label.bind(texture_size=label.setter('size'))
-        self.chat_content.add_widget(label)
+    def display_message(self, message, user=True):
+        background_color = get_color_from_hex("#1e1e1e") if user else get_color_from_hex("#2e7d32")
+        bubble = BubbleLabel(text=message, background_color=background_color)
+        self.chat_content.add_widget(bubble)
         self.chat_display.scroll_y = 0
 
     def clear_chat(self, instance):
