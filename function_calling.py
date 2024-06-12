@@ -1,5 +1,3 @@
-# function_calling.py
-
 import json
 import subprocess
 import os
@@ -17,35 +15,26 @@ from textblob import TextBlob
 class FunctionCalling:
     MODEL = 'llama3-70b-8192'
 
-    def __init__(self, api_key, memory_handler):
+    def __init__(self, api_key):
         self.client = Groq(api_key=api_key)
-        self.memory_handler = memory_handler  # Initialize with memory handler
 
     def run_local_command(self, command):
-        if command.lower() == "date":
-            command = "date /T"
-        elif command.lower() == "time":
-            command = "time /T"
         try:
+            if command.lower() == "date":
+                command = "date /T"
+            elif command.lower() == "time":
+                command = "time /T"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             output = result.stdout
             error = result.stderr
-            
-            # Add to memory
-            self.memory_handler(f"Command: {command}\nOutput: {output}\nError: {error}")
-
             return json.dumps({"command": command, "output": output, "error": error})
         except Exception as e:
-            error_message = str(e)
-            
-            # Add to memory
-            self.memory_handler(f"Command: {command}\nError: {error_message}")
-
-            return json.dumps({"command": command, "error": error_message})
+            return json.dumps({"command": command, "error": str(e)})
 
     def extract_text_from_url(self, url):
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
+        #options.add_argument('--headless')  # Run in headless mode for efficiency
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
@@ -64,9 +53,10 @@ class FunctionCalling:
     def web_research(self, query):
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
+        options.add_argument('--headless')  # Run in headless mode for efficiency
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
-        
+
         try:
             driver.get("https://www.google.com")
             search_box = driver.find_element(By.NAME, "q")
@@ -82,11 +72,11 @@ class FunctionCalling:
             for result in results:
                 title_element = result.select_one('.DKV0Md')
                 link_element = result.select_one('a')
-                
+
                 if title_element and link_element:
                     title = title_element.get_text()
                     link = link_element.get('href')
-                    
+
                     # Extract main page content
                     main_content = self.extract_text_from_url(link)
                     search_results.append({
@@ -94,11 +84,11 @@ class FunctionCalling:
                         "link": link,
                         "content": main_content
                     })
-                    
-                    # Extract content from 3 sublinks
+
+                    # Extract content from 2 sublinks
                     driver.get(link)
                     sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    sub_links = sub_soup.select('a')[:3]  # Select first 3 sublinks
+                    sub_links = sub_soup.select('a')[:2]  # Select first 2 sublinks
                     for sub_link in sub_links:
                         sub_url = sub_link.get('href')
                         if sub_url and sub_url.startswith('http'):
@@ -108,7 +98,7 @@ class FunctionCalling:
                                 "link": sub_url,
                                 "content": sub_content
                             })
-            
+
             # Aggregate content and filter based on sentiment
             aggregated_content = []
             for result in search_results:
@@ -125,17 +115,9 @@ class FunctionCalling:
             if len(final_content.split()) > 1500:
                 final_content = ' '.join(final_content.split()[:1500])
 
-            # Add to memory
-            self.memory_handler(f"Query: {query}\nResults: {final_content}")
-
             return json.dumps({"query": query, "results": final_content})
         except Exception as e:
-            error_message = str(e)
-            
-            # Add to memory
-            self.memory_handler(f"Query: {query}\nError: {error_message}")
-
-            return json.dumps({"query": query, "error": error_message})
+            return json.dumps({"query": query, "error": str(e)})
         finally:
             driver.quit()
 
@@ -143,7 +125,7 @@ class FunctionCalling:
         messages = [
             {
                 "role": "system",
-                "content": "You are a function calling LLM that uses the data extracted from local commands and web research functions to provide detailed responses to the user."
+                "content": "You are a function calling LLM that uses the data extracted from local commands and web research functions to provide detailed responses to the user. You are designed to assist with running system commands and performing web research to gather relevant information."
             },
             {
                 "role": "user",
@@ -155,13 +137,13 @@ class FunctionCalling:
                 "type": "function",
                 "function": {
                     "name": "run_local_command",
-                    "description": "Execute a local command on the system to perform tasks such as file manipulation, retrieving system information, or running scripts. Example commands include: 'dir' to list directory contents, 'echo Hello World' to print text, 'date /T' to display the current date, 'time /T' to show the current time, and 'python --version' to check the Python version installed.",
+                    "description": "Execute a local command on the system to perform tasks such as file manipulation, retrieving system information, or running scripts. Example commands include: 'dir' to list directory contents, 'echo Hello World' to print text, 'date /T' to display the current date, 'time /T' to show the current time, and 'python --version' to check the Python version installed. ONLY use valid command for what user wants IE: if user asks for chrome browser, open it with command 'chrome' not 'dir' or 'echo Hello World' etc.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "command": {
                                 "type": "string",
-                                "description": "The specific command to execute on the local system. Examples: 'dir', 'echo Hello World', 'date /T', 'time /T', 'python --version'.",
+                                "description": "The specific command to execute on the local system. Examples: 'dir', 'echo Hello World', 'date /T', 'time /T', 'python --version'. These are ONLY examples, use valid command for what user wants IE: if user asks for chrome browser, open it with command 'chrome' not 'dir' or 'echo Hello World' etc.",
                             }
                         },
                         "required": ["command"],
@@ -206,7 +188,10 @@ class FunctionCalling:
                 function_name = tool_call.function.name
                 function_to_call = available_functions[function_name]
                 function_args = json.loads(tool_call.function.arguments)
-                function_response = function_to_call(**function_args)
+                try:
+                    function_response = function_to_call(**function_args)
+                except Exception as e:
+                    function_response = json.dumps({"error": str(e)})
                 messages.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -229,10 +214,9 @@ if __name__ == "__main__":
     if not api_key:
         print("Error: GROQ_API_KEY environment variable not set.")
     else:
-        # Assuming we have a Brain instance to pass the add_to_memory method
-        from brain import Brain
+        from brain import Brain  # Assuming we have a Brain instance to pass the add_to_memory method
         brain_instance = Brain(api_key)
-        fc = FunctionCalling(api_key, brain_instance.add_to_memory)
+        fc = FunctionCalling(api_key)
         
         # Test prompts for run_local_command function
         user_prompts = [
