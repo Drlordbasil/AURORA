@@ -23,7 +23,7 @@ AURORA is a multithought AI with multiple brain lobes that feed into its thought
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/aurora.git
+   git clone (https://github.com/Drlordbasil/AURORA).git
    ```
 
 2. Install the required libraries:
