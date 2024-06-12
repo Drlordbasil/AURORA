@@ -28,7 +28,7 @@ AURORA is a multithought AI with multiple brain lobes that feed into its thought
 
 2. Install the required libraries:
    ```
-   pip install -r requirements.txt
+   pip install groq ollama chromadb
    ```
 
 3. Set up the Groq API key:
