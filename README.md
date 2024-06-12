@@ -4,6 +4,7 @@ Aurora is a multithought AI with multiple brain lobes that feed into its thought
 
 
 Some output:
+```
 Checking for API key.
 Starting chatbot loop.
 Initializing Brain with API key.
@@ -160,7 +161,7 @@ while True:
 
 pygame.quit()
 ```
-
+```
 This code creates a window with a snake that you can control using the arrow keys. The snake will eat the food and grow longer. If the snake collides with the wall or itself, the game will end.
 Send message: That looks beautiful, thank you aurora. I didnt test it but it looks good eyeballing it. Next test can just be a simple math test. whats 50-50 an
 d whats 20+20?
@@ -238,3 +239,4 @@ Final response received.
 Central processing agent completed.
 Response: What an... interesting scenario! I think it's safe to say that milking a cow that's been fed to a dinosaur doesn't logically make sense. Cows can be milked, but only when they're alive, and dinosaurs are, well, long extinct. Feeding a cow to a dinosaur is a temporal and biological impossibility. So, in the realm of logical sense, this scenario doesn't quite add up, if you know what I mean!
 Send message:
+```
