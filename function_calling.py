@@ -11,60 +11,58 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+from nltk.tokenize import sent_tokenize
+from textblob import TextBlob
 
 class FunctionCalling:
-    """
-    The FunctionCalling class integrates function calling capabilities into the AURORA chat chain.
-    It allows the chat model to use external functions to enhance responses based on specific prompts.
-    """
-
     MODEL = 'llama3-70b-8192'
 
-    def __init__(self, api_key):
-        """
-        Initialize the FunctionCalling class with the provided API key.
-
-        Args:
-            api_key (str): The API key for accessing the Groq service.
-        """
+    def __init__(self, api_key, memory_handler):
         self.client = Groq(api_key=api_key)
+        self.memory_handler = memory_handler  # Initialize with memory handler
 
     def run_local_command(self, command):
-        """
-        Execute a local command on a Windows 11 PC and return the output.
-
-        Args:
-            command (str): The command to execute.
-
-        Returns:
-            str: The output of the command.
-        """
         if command.lower() == "date":
             command = "date /T"
         elif command.lower() == "time":
             command = "time /T"
         try:
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
-            print("<run_local_command> used by agent - Success")
-            print(result.stdout)
-            return json.dumps({"command": command, "output": result.stdout, "error": result.stderr})
+            output = result.stdout
+            error = result.stderr
+            
+            # Add to memory
+            self.memory_handler(f"Command: {command}\nOutput: {output}\nError: {error}")
+
+            return json.dumps({"command": command, "output": output, "error": error})
         except Exception as e:
-            print("<run_local_command> used by agent - Failed")
-            print(str(e))
-            return json.dumps({"command": command, "error": str(e)})
+            error_message = str(e)
+            
+            # Add to memory
+            self.memory_handler(f"Command: {command}\nError: {error_message}")
+
+            return json.dumps({"command": command, "error": error_message})
+
+    def extract_text_from_url(self, url):
+        options = webdriver.ChromeOptions()
+        options.add_argument('--disable-gpu')
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+
+        try:
+            driver.get(url)
+            time.sleep(2)
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            paragraphs = soup.find_all('p')
+            text = ' '.join([p.get_text() for p in paragraphs])
+            return text
+        except Exception as e:
+            return f"Error extracting text from {url}: {str(e)}"
+        finally:
+            driver.quit()
 
     def web_research(self, query):
-        """
-        Perform a web research query using Selenium and BeautifulSoup to extract useful information from Google.
-
-        Args:
-            query (str): The research query.
-
-        Returns:
-            str: The extracted useful information from Google search results.
-        """
         options = webdriver.ChromeOptions()
-        options.add_argument('--headless')
         options.add_argument('--disable-gpu')
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
@@ -74,43 +72,74 @@ class FunctionCalling:
             search_box = driver.find_element(By.NAME, "q")
             search_box.send_keys(query)
             search_box.send_keys(Keys.RETURN)
-
             time.sleep(3)  # Increased wait time for search results to load
 
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             search_results = []
 
-            for result in soup.select('.tF2Cxc'):
+            # Get top 3 search results
+            results = soup.select('.tF2Cxc')[:3]
+            for result in results:
                 title_element = result.select_one('.DKV0Md')
-                snippet_element = result.select_one('.IsZvec')
+                link_element = result.select_one('a')
                 
-                # Check if elements exist
-                if title_element and snippet_element:
+                if title_element and link_element:
                     title = title_element.get_text()
-                    snippet = snippet_element.get_text()
-                    search_results.append({"title": title, "snippet": snippet})
+                    link = link_element.get('href')
+                    
+                    # Extract main page content
+                    main_content = self.extract_text_from_url(link)
+                    search_results.append({
+                        "title": title,
+                        "link": link,
+                        "content": main_content
+                    })
+                    
+                    # Extract content from 3 sublinks
+                    driver.get(link)
+                    sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
+                    sub_links = sub_soup.select('a')[:3]  # Select first 3 sublinks
+                    for sub_link in sub_links:
+                        sub_url = sub_link.get('href')
+                        if sub_url and sub_url.startswith('http'):
+                            sub_content = self.extract_text_from_url(sub_url)
+                            search_results.append({
+                                "title": f"Sublink from {title}",
+                                "link": sub_url,
+                                "content": sub_content
+                            })
+            
+            # Aggregate content and filter based on sentiment
+            aggregated_content = []
+            for result in search_results:
+                sentences = sent_tokenize(result['content'])
+                filtered_sentences = []
+                for sentence in sentences:
+                    sentiment = TextBlob(sentence).sentiment
+                    if sentiment.subjectivity < 0.5:  # Filter based on subjectivity
+                        filtered_sentences.append(sentence)
+                aggregated_content.extend(filtered_sentences)
 
-            print("<web_research> used by agent - Success")
-            for res in search_results:
-                print(f"Title: {res['title']}, Snippet: {res['snippet']}")
-            return json.dumps({"query": query, "results": search_results})
+            # Limit to 1500 words
+            final_content = ' '.join(aggregated_content)
+            if len(final_content.split()) > 1500:
+                final_content = ' '.join(final_content.split()[:1500])
+
+            # Add to memory
+            self.memory_handler(f"Query: {query}\nResults: {final_content}")
+
+            return json.dumps({"query": query, "results": final_content})
         except Exception as e:
-            print("<web_research> used by agent - Failed")
-            print(str(e))
-            return json.dumps({"query": query, "error": str(e)})
+            error_message = str(e)
+            
+            # Add to memory
+            self.memory_handler(f"Query: {query}\nError: {error_message}")
+
+            return json.dumps({"query": query, "error": error_message})
         finally:
             driver.quit()
 
     def run_conversation(self, user_prompt):
-        """
-        Run a conversation with function calling capabilities.
-
-        Args:
-            user_prompt (str): The user's prompt to the chat model.
-
-        Returns:
-            str: The response from the chat model.
-        """
         messages = [
             {
                 "role": "system",
@@ -126,13 +155,13 @@ class FunctionCalling:
                 "type": "function",
                 "function": {
                     "name": "run_local_command",
-                    "description": "Execute a local command on the system",
+                    "description": "Execute a local command on the system to perform tasks such as file manipulation, retrieving system information, or running scripts. Example commands include: 'dir' to list directory contents, 'echo Hello World' to print text, 'date /T' to display the current date, 'time /T' to show the current time, and 'python --version' to check the Python version installed.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "command": {
                                 "type": "string",
-                                "description": "The command to execute (e.g. 'dir' or 'echo Hello World')",
+                                "description": "The specific command to execute on the local system. Examples: 'dir', 'echo Hello World', 'date /T', 'time /T', 'python --version'.",
                             }
                         },
                         "required": ["command"],
@@ -143,13 +172,13 @@ class FunctionCalling:
                 "type": "function",
                 "function": {
                     "name": "web_research",
-                    "description": "Perform a web research query",
+                    "description": "Perform a web research query to gather information from online sources. This involves searching for a specific query on Google, extracting relevant content from the top search results, and aggregating the information. For example, you can search for 'Latest AI trends', 'Python 3.12 new features', or 'Benefits of using Docker'.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "The research query (e.g. 'Latest AI trends')",
+                                "description": "The research query to perform. Example queries include: 'Latest AI trends', 'Python 3.12 new features', 'Benefits of using Docker', 'How to set up a virtual environment in Python', 'Top 10 programming languages in 2024'.",
                             }
                         },
                         "required": ["query"],
@@ -200,7 +229,10 @@ if __name__ == "__main__":
     if not api_key:
         print("Error: GROQ_API_KEY environment variable not set.")
     else:
-        fc = FunctionCalling(api_key)
+        # Assuming we have a Brain instance to pass the add_to_memory method
+        from brain import Brain
+        brain_instance = Brain(api_key)
+        fc = FunctionCalling(api_key, brain_instance.add_to_memory)
         
         # Test prompts for run_local_command function
         user_prompts = [
