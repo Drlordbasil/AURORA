@@ -1,5 +1,6 @@
 # brain.py
 
+import os
 import threading
 from queue import Queue
 from groq import Groq
@@ -27,7 +28,7 @@ class Brain:
         """
         print("Initializing Brain with API key.")
         self.client = Groq(api_key=api_key)
-        self.function_caller = FunctionCalling(api_key)  # Initialize FunctionCalling
+        self.function_caller = FunctionCalling(api_key, self.add_to_memory)  # Initialize FunctionCalling with add_to_memory
         self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
         self.lobes = {
@@ -273,3 +274,12 @@ class Brain:
         except Exception as e:
             print(f"Error in central_processing_agent: {e}")
             return f"Error: {e}"
+
+if __name__ == "__main__":
+    api_key = os.getenv('GROQ_API_KEY')
+    if not api_key:
+        print("Error: GROQ_API_KEY environment variable not set.")
+    else:
+        brain = Brain(api_key)
+        user_prompt = "Tell me about the latest advancements in AI."
+        print(brain.central_processing_agent(user_prompt))
