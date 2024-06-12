@@ -1,3 +1,5 @@
+# brain.py
+
 import threading
 from queue import Queue
 from groq import Groq
@@ -9,7 +11,19 @@ from utilities import setup_logging, setup_embedding_collection
 from final_agent_persona import FinalAgentPersona
 
 class Brain:
+    """
+    The Brain class simulates a human-like brain structure with different lobes responsible for
+    distinct cognitive functions. It integrates various AI models and APIs to process user prompts,
+    generate embeddings, retrieve relevant memory, and produce coherent responses.
+    """
+    
     def __init__(self, api_key):
+        """
+        Initialize the Brain class with the provided API key.
+
+        Args:
+            api_key (str): The API key for accessing the Groq service.
+        """
         print("Initializing Brain with API key.")
         self.client = Groq(api_key=api_key)
         self.embeddings_model = "mxbai-embed-large"
@@ -25,18 +39,36 @@ class Brain:
         print("Brain initialization completed.")
 
     def add_to_memory(self, text):
+        """
+        Add the given text to the memory by generating its embedding and storing it in the collection.
+
+        Args:
+            text (str): The text to be added to memory.
+        """
         print("Adding to memory.")
-        response = ollama.embeddings(model=self.embeddings_model, prompt=text)
-        embedding = response["embedding"]
-        self.collection.add(
-            ids=[str(self.collection_size)],
-            embeddings=[embedding],
-            documents=[text]
-        )
-        self.collection_size += 1
-        print("Memory added.")
+        try:
+            response = ollama.embeddings(model=self.embeddings_model, prompt=text)
+            embedding = response["embedding"]
+            self.collection.add(
+                ids=[str(self.collection_size)],
+                embeddings=[embedding],
+                documents=[text]
+            )
+            self.collection_size += 1
+            print("Memory added.")
+        except Exception as e:
+            print(f"Error adding to memory: {e}")
 
     def generate_embedding(self, text):
+        """
+        Generate an embedding for the given text.
+
+        Args:
+            text (str): The text for which the embedding is to be generated.
+
+        Returns:
+            list: The generated embedding or None if there was an error.
+        """
         print("Generating embedding.")
         try:
             response = ollama.embeddings(model=self.embeddings_model, prompt=text)
@@ -52,15 +84,36 @@ class Brain:
             return None
 
     def retrieve_relevant_memory(self, prompt_embedding):
+        """
+        Retrieve relevant memories based on the provided prompt embedding.
+
+        Args:
+            prompt_embedding (list): The embedding of the prompt for querying relevant memories.
+
+        Returns:
+            list: A list of relevant memory documents.
+        """
         print("Retrieving relevant memory.")
-        results = self.collection.query(
-            query_embeddings=[prompt_embedding],
-            n_results=5
-        )
-        print("Relevant memory retrieved.")
-        return [doc for doc in results['documents'][0]]
+        try:
+            results = self.collection.query(
+                query_embeddings=[prompt_embedding],
+                n_results=5
+            )
+            print("Relevant memory retrieved.")
+            return [doc for doc in results['documents'][0]]
+        except Exception as e:
+            print(f"Error retrieving relevant memory: {e}")
+            return []
 
     def lobe_agent(self, lobe_name, user_prompt, memory_context):
+        """
+        Execute a lobe agent to process the user prompt within the context of the specified lobe.
+
+        Args:
+            lobe_name (str): The name of the lobe.
+            user_prompt (str): The user prompt.
+            memory_context (str): The memory context for the lobe to use.
+        """
         print(f"Starting lobe agent for {lobe_name}.")
         try:
             messages = [
@@ -84,45 +137,87 @@ class Brain:
             self.responses.put((lobe_name, f"Error: {e}"))
 
     def start_lobes(self, prompt):
-        print("Starting lobes.")
-        prompt_embedding = self.generate_embedding(prompt)
-        time.sleep(1)  # Additional sleep to avoid rate limits
-        memory_context = self.retrieve_relevant_memory(prompt_embedding)
-        time.sleep(1)  # Additional sleep to avoid rate limits
-        memory_context = " ".join(memory_context)[:1000]  # Limit context to 1,000 tokens
+        """
+        Start the processing of user prompt by each lobe.
 
-        for lobe_name in self.lobes.keys():
-            thread = threading.Thread(target=self.lobe_agent, args=(lobe_name, prompt, memory_context))
-            thread.start()
-            self.threads.append(thread)
-            print(f"Lobe {lobe_name} started.")
-            time.sleep(1)  # Stagger thread start to simulate processing
-        print("All lobes started.")
+        Args:
+            prompt (str): The user prompt to be processed.
+        """
+        print("Starting lobes.")
+        try:
+            prompt_embedding = self.generate_embedding(prompt)
+            time.sleep(1)  # Additional sleep to avoid rate limits
+            memory_context = self.retrieve_relevant_memory(prompt_embedding)
+            time.sleep(1)  # Additional sleep to avoid rate limits
+            memory_context = " ".join(memory_context)[:1000]  # Limit context to 1,000 tokens
+
+            for lobe_name in self.lobes.keys():
+                thread = threading.Thread(target=self.lobe_agent, args=(lobe_name, prompt, memory_context))
+                thread.start()
+                self.threads.append(thread)
+                print(f"Lobe {lobe_name} started.")
+                time.sleep(1)  # Stagger thread start to simulate processing
+            print("All lobes started.")
+        except Exception as e:
+            print(f"Error starting lobes: {e}")
 
     def process_responses(self):
-        print("Processing responses.")
-        for thread in self.threads:
-            thread.join()
+        """
+        Process the responses from all lobes after they have finished execution.
 
-        aggregated_responses = {}
-        while not self.responses.empty():
-            lobe_name, response = self.responses.get()
-            aggregated_responses[lobe_name] = response
-        print("Responses processed.")
-        return aggregated_responses
+        Returns:
+            dict: Aggregated responses from all lobes.
+        """
+        print("Processing responses.")
+        try:
+            for thread in self.threads:
+                thread.join()
+
+            aggregated_responses = {}
+            while not self.responses.empty():
+                lobe_name, response = self.responses.get()
+                aggregated_responses[lobe_name] = response
+            print("Responses processed.")
+            return aggregated_responses
+        except Exception as e:
+            print(f"Error processing responses: {e}")
+            return {}
 
     def analyze_responses(self, responses):
+        """
+        Analyze the responses received from all lobes.
+
+        Args:
+            responses (dict): The responses from each lobe.
+
+        Returns:
+            dict: The analyzed responses.
+        """
         print("Analyzing responses.")
-        # Log the responses for later analysis
-        for lobe, response in responses.items():
-            logging.info(f"{lobe}: {response}")
-        print("Responses analyzed.")
-        return responses
+        try:
+            # Log the responses for later analysis
+            for lobe, response in responses.items():
+                logging.info(f"{lobe}: {response}")
+            print("Responses analyzed.")
+            return responses
+        except Exception as e:
+            print(f"Error analyzing responses: {e}")
+            return responses
 
     def final_agent(self, user_prompt, aggregated_responses):
+        """
+        Combine the thoughts from all lobes into a coherent final response.
+
+        Args:
+            user_prompt (str): The original user prompt.
+            aggregated_responses (dict): The aggregated responses from all lobes.
+
+        Returns:
+            str: The final coherent response.
+        """
         print("Combining thoughts into a coherent response.")
         combined_thoughts = " ".join(f"[{lobe}] {response}" for lobe, response in aggregated_responses.items())
-        
+
         messages = [
             {
                 "role": "system",
@@ -133,7 +228,7 @@ class Brain:
                 "content": f"[user_prompt]{user_prompt}[/user_prompt] Only respond to what this user prompt is asking for. Dont include thoughts or past questions unless relevant.",
             }
         ]
-        
+
         try:
             print("Making final API call.")
             chat_completion = self.client.chat.completions.create(
@@ -149,13 +244,26 @@ class Brain:
             return f"Error: {e}"
 
     def central_processing_agent(self, prompt):
+        """
+        The central processing function that coordinates the entire process of handling the user prompt.
+
+        Args:
+            prompt (str): The user prompt to be processed.
+
+        Returns:
+            str: The final response generated after processing the prompt.
+        """
         print("Starting central processing agent.")
-        self.add_to_memory(prompt)
-        time.sleep(1)  # Additional sleep to avoid rate limits
-        self.start_lobes(prompt)
-        responses = self.process_responses()
-        analyzed_responses = self.analyze_responses(responses)
-        time.sleep(1)  # Additional sleep to ensure rate limits are respected
-        final_thought = self.final_agent(prompt, analyzed_responses)
-        print("Central processing agent completed.")
-        return final_thought
+        try:
+            self.add_to_memory(prompt)
+            time.sleep(1)  # Additional sleep to avoid rate limits
+            self.start_lobes(prompt)
+            responses = self.process_responses()
+            analyzed_responses = self.analyze_responses(responses)
+            time.sleep(1)  # Additional sleep to ensure rate limits are respected
+            final_thought = self.final_agent(prompt, analyzed_responses)
+            print("Central processing agent completed.")
+            return final_thought
+        except Exception as e:
+            print(f"Error in central_processing_agent: {e}")
+            return f"Error: {e}"
