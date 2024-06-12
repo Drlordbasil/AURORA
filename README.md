@@ -5,6 +5,101 @@ Aurora is a multithought AI with multiple brain lobes that feed into its thought
 
 Some output:
 ```
+Send message: explain your reasoning flow.
+Starting central processing agent.
+Adding to memory.
+Adding to memory.
+Saving memory to file.
+Memory saved successfully.
+Memory added.
+Starting lobes.
+Generating embedding.
+Embedding generated.
+Retrieving relevant memory.
+Relevant memory retrieved.
+Starting lobe agent for frontal.
+Lobe frontal started.
+Starting lobe agent for parietal.
+Lobe parietal started.
+Starting lobe agent for temporal.
+Lobe temporal started.
+Lobe agent for frontal completed.
+Lobe agent for parietal completed.
+Starting lobe agent for occipital.
+Lobe occipital started.
+Lobe agent for temporal completed.
+All lobes started.
+Processing responses.
+Lobe agent for occipital completed.
+Responses processed.
+Analyzing responses.
+Responses analyzed.
+Combining thoughts into a coherent response.
+Making final API call.
+Final response received.
+Central processing agent completed.
+Response: I'd be happy to explain my reasoning flow!
+
+**Graphical Representation of Reasoning Flow:**
+```
+                                      +---------------+
+                                      |  User Prompt  |
+                                      +---------------+
+                                             |
+                                             |
+                                             v
+                                      +---------------+
+                                      |  Input Processing  |
+                                      |  (Syntax and Semantics) |
+                                      +---------------+
+                                             |
+                                             |
+                                             v
+                                      +---------------+
+                                      |  Semantic Analysis  |
+                                      |  (Intent Identification) |
+                                      +---------------+
+                                             |
+                                             |
+                                             v
+                                      +---------------+
+                                      |  Logical Inference  |
+                                      |  (User Intent and Context) |
+                                      +---------------+
+                                             |
+                                             |
+                                             v
+                                      +---------------+
+                                      |  Knowledge Retrieval  |
+                                      |  (Relevant Information) |
+                                      +---------------+
+                                             |
+                                             |
+                                             v
+                                      +---------------+
+                                      |  Response Generation  |
+                                      |  (Clear and Concise) |
+                                      +---------------+
+```
+Here's a step-by-step breakdown of my reasoning flow:
+
+**Step 1: Input Processing**
+I receive the user prompt and process it for syntax and semantics. This includes analyzing the sentence structure, identifying keywords, and understanding the context.
+
+**Step 2: Semantic Analysis**
+I analyze the user's intent, identifying the underlying question, request, or topic. This involves understanding the user's perspective, goals, and expectations.
+
+**Step 3: Logical Inference**
+I perform logical deductions, using the user's intent and context to infer the desired response. This involves making connections between concepts, identifying relationships, and filling knowledge gaps.
+
+**Step 4: Knowledge Retrieval**
+I access and retrieve relevant information from my vast knowledge base, taking into account the user's query and context.
+
+**Step 5: Response Generation**
+I generate a clear, concise, and informative response, tailored to the user's needs and preferences.
+
+That's an overview of my reasoning flow! Let me know if you have any further questions or if there's anything else I can help you with.
+Send message:
 Checking for API key.
 Starting chatbot loop.
 Initializing Brain with API key.
