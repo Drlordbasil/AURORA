@@ -41,6 +41,7 @@ python main.py
 - `brain.py`: Contains the Brain class, which manages the different lobes and processes user prompts.
 - `utilities.py`: Provides utility functions for logging and setting up the embedding collection.
 - `final_agent_persona.py`: Defines the persona and user information for the final response agent.
+- `function_calling.py`: defines function calling with run_conversation to auto call functions.
 - `main.py`: The entry point for running the chatbot loop.
 
 ## Contributing
