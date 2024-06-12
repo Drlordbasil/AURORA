@@ -9,6 +9,7 @@ import chromadb
 import time
 from utilities import setup_logging, setup_embedding_collection
 from final_agent_persona import FinalAgentPersona
+from function_calling import FunctionCalling  # Import FunctionCalling
 
 class Brain:
     """
@@ -26,6 +27,7 @@ class Brain:
         """
         print("Initializing Brain with API key.")
         self.client = Groq(api_key=api_key)
+        self.function_caller = FunctionCalling(api_key)  # Initialize FunctionCalling
         self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
         self.lobes = {
@@ -261,9 +263,13 @@ class Brain:
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
             time.sleep(1)  # Additional sleep to ensure rate limits are respected
-            final_thought = self.final_agent(prompt, analyzed_responses)
+            thoughts = self.final_agent(prompt, analyzed_responses)
+
+            # Integrate FunctionCalling to enhance final response
+            final_response = self.function_caller.run_conversation(thoughts)
+
             print("Central processing agent completed.")
-            return final_thought
+            return final_response
         except Exception as e:
             print(f"Error in central_processing_agent: {e}")
             return f"Error: {e}"
