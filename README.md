@@ -1,6 +1,6 @@
 STABLE: Yes
 
-NOTE: I only use local modals on ollama and groq because its free. Deepgram gave me $200 in credit, or else it wouldnt use voice.
+NOTE: I only use local modals on ollama and groq because its free. Deepgram gave me $200 in credit, or else it wouldnt use voice. Im just broke lol
 - Thank you :D
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 
