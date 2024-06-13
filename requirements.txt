@@ -1,3 +1,13 @@
-groq
-ollama
+beautifulsoup4
 chromadb
+deepgram
+groq
+kivy
+nltk
+ollama
+pdfminer.six
+playsound
+psutil
+requests
+selenium
+webdriver_manager
