@@ -14,13 +14,24 @@ from nltk.tokenize import sent_tokenize
 from textblob import TextBlob
 from image_vision import ImageVision
 from pdfminer.high_level import extract_text
+from kivy.clock import Clock
 
 class FunctionCalling:
     MODEL = 'llama3-70b-8192'
 
-    def __init__(self, api_key):
+    def __init__(self, api_key, status_update_callback):
         self.client = Groq(api_key=api_key)
         self.image_vision = ImageVision()
+        self.status_update_callback = status_update_callback
+
+    def _update_status(self, message):
+        """
+        Update the GUI with the current status message.
+
+        Args:
+            message (str): The status message to be displayed on the GUI.
+        """
+        Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
 
     def run_local_command(self, command):
         """
@@ -40,6 +51,7 @@ class FunctionCalling:
         Returns:
         - JSON object containing the executed command, its output, and any errors encountered.
         """
+        self._update_status(f"Running local command: {command}")
         try:
             if command.lower() == "date":
                 command = "date /T"
@@ -48,8 +60,10 @@ class FunctionCalling:
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             output = result.stdout
             error = result.stderr
+            self._update_status(f"Completed local command: {command}")
             return json.dumps({"command": command, "output": output, "error": error})
         except Exception as e:
+            self._update_status(f"Error running local command: {command}")
             return json.dumps({"command": command, "error": str(e)})
 
     def extract_text_from_url(self, url):
@@ -65,6 +79,7 @@ class FunctionCalling:
         Returns:
         - The extracted text as a string.
         """
+        self._update_status(f"Extracting text from URL: {url}")
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
         #options.add_argument('--headless')  # Run in headless mode for efficiency
@@ -77,8 +92,10 @@ class FunctionCalling:
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             paragraphs = soup.find_all('p')
             text = ' '.join([p.get_text() for p in paragraphs])
+            self._update_status(f"Completed text extraction from URL: {url}")
             return text
         except Exception as e:
+            self._update_status(f"Error extracting text from URL: {url}")
             return f"Error extracting text from {url}: {str(e)}"
         finally:
             driver.quit()
@@ -100,6 +117,7 @@ class FunctionCalling:
         Returns:
         - JSON object containing the query and the aggregated results.
         """
+        self._update_status(f"Performing web research for query: {query}")
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
         #options.add_argument('--headless')  # Run in headless mode for efficiency
@@ -164,8 +182,10 @@ class FunctionCalling:
             if len(final_content.split()) > 1500:
                 final_content = ' '.join(final_content.split()[:1500])
 
+            self._update_status(f"Completed web research for query: {query}")
             return json.dumps({"query": query, "results": final_content})
         except Exception as e:
+            self._update_status(f"Error performing web research for query: {query}")
             return json.dumps({"query": query, "error": str(e)})
         finally:
             driver.quit()
@@ -183,14 +203,17 @@ class FunctionCalling:
         Returns:
         - JSON object containing the PDF URL and the extracted text.
         """
+        self._update_status(f"Extracting text from PDF: {pdf_url}")
         try:
             response = requests.get(pdf_url)
             with open("temp.pdf", "wb") as file:
                 file.write(response.content)
             text = extract_text("temp.pdf")
             os.remove("temp.pdf")
+            self._update_status(f"Completed text extraction from PDF: {pdf_url}")
             return json.dumps({"pdf_url": pdf_url, "text": text})
         except Exception as e:
+            self._update_status(f"Error extracting text from PDF: {pdf_url}")
             return json.dumps({"pdf_url": pdf_url, "error": str(e)})
 
     def analyze_sentiment(self, text):
@@ -206,13 +229,17 @@ class FunctionCalling:
         Returns:
         - JSON object containing the text and its sentiment analysis (polarity and subjectivity).
         """
+        self._update_status("Analyzing sentiment")
         try:
             sentiment = TextBlob(text).sentiment
+            self._update_status("Sentiment analysis completed")
             return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}})
         except Exception as e:
+            self._update_status("Error analyzing sentiment")
             return json.dumps({"text": text, "error": str(e)})
 
     def run_conversation(self, user_prompt):
+        self._update_status("Running conversation")
         messages = [
             {
                 "role": "system",
@@ -339,9 +366,13 @@ class FunctionCalling:
             tool_choice="auto",
             max_tokens=4096
         )
-
+        time.sleep(10)
+        self._update_status("first response received in function_calling loop")
         response_message = response.choices[0].message
+        time.sleep(10)
         tool_calls = response_message.tool_calls
+        time.sleep(10)
+        self._update_status("tool calls received in function_calling loop")
         if tool_calls:
             available_functions = {
                 "run_local_command": self.run_local_command,
@@ -355,18 +386,36 @@ class FunctionCalling:
                 function_name = tool_call.function.name
                 function_to_call = available_functions[function_name]
                 function_args = json.loads(tool_call.function.arguments)
-                try:
-                    function_response = function_to_call(**function_args)
-                except Exception as e:
-                    function_response = json.dumps({"error": str(e)})
-                messages.append(
-                    {
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": function_response,
-                    }
-                )
+                retry_count = 0
+                max_retries = 3
+                self._update_status(f"Calling function: {function_name}")
+                while retry_count < max_retries:
+                    try:
+                        function_response = function_to_call(**function_args)
+                        self._update_status(f"Function {function_name} completed")
+                        messages.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "role": "tool",
+                                "name": function_name,
+                                "content": function_response,
+                            }
+                        )
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count == max_retries:
+                            function_response = json.dumps({"error": f"Failed after {max_retries} retries: {str(e)}"})
+                        else:
+                            function_response = json.dumps({"error": f"Attempt {retry_count}/{max_retries} failed: {str(e)}. Retrying..."})
+                        messages.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "role": "tool",
+                                "name": function_name,
+                                "content": function_response,
+                            }
+                        )
                 time.sleep(10)  # Sleep for 10 seconds between function calls
             second_response = self.client.chat.completions.create(
                 model=self.MODEL,
@@ -382,7 +431,7 @@ if __name__ == "__main__":
         print("Error: GROQ_API_KEY environment variable not set.")
         api_key = input("Enter your GROQ API key: ")
     else:
-        from brain import Brain  # Assuming we have a Brain instance to pass the add_to_memory method
+        from brain import Brain  # Assuming we have a Brain instance to     pass the add_to_memory method
         brain_instance = Brain(api_key)
         fc = FunctionCalling(api_key)
         
