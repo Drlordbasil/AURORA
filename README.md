@@ -2,6 +2,7 @@
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 
 AURORA (Artificial Unified Responsive Optimized Reasoning Agent) is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different types of cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses to user prompts.
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/22d9ea6e-11e4-483a-9d50-6d61180c1031)
 
 ## Features
 
@@ -9,6 +10,28 @@ AURORA (Artificial Unified Responsive Optimized Reasoning Agent) is a sophistica
 - **Parietal Lobe**: Provides educational insights and processes sensory information.
 - **Temporal Lobe**: Contextualizes user prompts socially and processes auditory information.
 - **Occipital Lobe**: Describes visual information vividly and clearly.
+- **Function Calling**:
+  - **Run Local Commands**: Execute local system commands such as listing directory contents, printing text, displaying the current date and time, and checking the Python version installed.
+  - **Web Research**: Perform web research queries to gather information from online sources, including performing Google searches, extracting relevant content from top search results, and aggregating the information.
+  - **Analyze Images**: Analyze images from provided URLs and generate descriptions of the image content.
+  - **Extract Text from PDFs**: Extract text content from PDF files using the PDF URL.
+  - **Analyze Sentiment**: Analyze the sentiment of given text, providing polarity and subjectivity scores.
+- **Text-to-Speech**: Converts text to speech, with the ability to handle long texts by chunking into smaller parts and combining them into a single playable audio file.
+- **Embeddings and Memory Retrieval**:
+  - **Generate Embeddings**: Generate embeddings for given text and store them in a collection.
+  - **Retrieve Relevant Memory**: Retrieve relevant memories based on prompt embeddings to provide contextually appropriate responses.
+- **Central Processing Agent**: Coordinates the entire process of handling user prompts, including running function calls, saving responses to memory, generating embeddings, retrieving memory, processing responses from different lobes, and generating a final coherent response.
+- **Error Handling**: Robust error handling with retries and user feedback to ensure reliable operations and informative error messages.
+- **GUI Features**:
+  - **Info Box**: Displays detailed information about AURORA and its features.
+  - **Status Updates**: Provides real-time status updates on the right side of the GUI.
+  - **Graceful Exit**: Ensures the application closes all loops and exits gracefully when the window is closed.
+  - **Colorful and Professional Design**: A visually appealing and user-friendly interface with a modern and professional look.
+  - **Animated Status Bar**: Status bar animations for an engaging user experience.
+  - **Logo**: A dedicated space for the AURORA logo to enhance the visual appeal of the GUI.
+- **Integration with Advanced AI Models**: Utilizes advanced AI models and APIs such as Groq and Ollama for various functionalities.
+- **Voice Output**: Converts final responses to speech for auditory feedback using Deepgram's Text-to-Speech capabilities.
+
 
 ## Installation
 
