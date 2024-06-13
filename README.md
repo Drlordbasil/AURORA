@@ -66,6 +66,7 @@ python main.py
 - `final_agent_persona.py`: Defines the persona and user information for the final response agent.
 - `function_calling.py`: defines function calling with run_conversation to auto call functions.
 - `image_vision.py`: defines ollama vision modal to call as a function in function_calling.py
+- `speaker.py`: adds text to speech using deepgram API, can disable in brain.py with commenting out text_to_speech(final_thought) line.
 - `main.py`: The entry point for running the chatbot loop.
 
 ## Contributing
