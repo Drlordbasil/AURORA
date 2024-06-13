@@ -89,7 +89,7 @@ This project is licensed under the MIT License.
 ## Contact
 
 For any questions or issues, please open an issue on GitHub or contact us directly.
-
 ## Acknowledgements
 
-AURORA is built using various technologies and libraries, including Groq, Ollama, and ChromaDB.
+AURORA is built using various technologies and libraries, including [Groq](https://console.groq.com/docs/models), [Ollama](https://github.com/ollama/ollama), and [ChromaDB](https://www.trychroma.com/docs).
+
