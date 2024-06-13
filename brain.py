@@ -27,6 +27,7 @@ class Brain:
         """
         print("Initializing Brain with API key.")
         self.client = Groq(api_key=api_key)
+        self.tts_enabled = True  # Text-to-Speech flag
         self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
         self.function_calling = FunctionCalling(api_key, status_update_callback)
@@ -40,7 +41,14 @@ class Brain:
         self.responses = Queue()
         self.threads = []
         print("Brain initialization completed.")
-
+    def toggle_tts(self):
+        """
+        Toggle the Text-to-Speech functionality on or off.
+        """
+        self.tts_enabled = not self.tts_enabled
+        status = "enabled" if self.tts_enabled else "disabled"
+        print(f"Text-to-Speech {status}")
+        self._update_status(f"Text-to-Speech {status}")
     def _update_status(self, message):
         """
         Update the GUI with the current status message.
@@ -405,7 +413,8 @@ class Brain:
             self._update_status("Final response generated.")
             print("Central processing agent completed.")
             self._update_status("Central processing agent completed.")
-            text_to_speech(final_thought)
+            if self.tts_enabled:
+                text_to_speech(final_thought)
             return final_thought
         except Exception as e:
             print(f"Error in central_processing_agent: {e}")
