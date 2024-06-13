@@ -1,4 +1,7 @@
 STABLE: Yes
+
+NOTE: I only use local modals on ollama and groq because its free. Deepgram gave me $200 in credit, or else it wouldnt use voice.
+- Thank you :D
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 
 AURORA (Artificial Unified Responsive Optimized Reasoning Agent) is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different types of cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses to user prompts.
