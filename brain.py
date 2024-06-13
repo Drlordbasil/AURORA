@@ -9,7 +9,8 @@ import json
 from utilities import setup_logging, setup_embedding_collection
 from final_agent_persona import FinalAgentPersona
 from function_calling import FunctionCalling
-
+from speaker import text_to_speech
+from kivy.clock import Clock
 class Brain:
     """
     The Brain class simulates a human-like brain structure with different lobes responsible for
@@ -17,7 +18,7 @@ class Brain:
     generate embeddings, retrieve relevant memory, and produce coherent responses.
     """
     
-    def __init__(self, api_key):
+    def __init__(self, api_key, status_update_callback):
         """
         Initialize the Brain class with the provided API key.
 
@@ -28,7 +29,8 @@ class Brain:
         self.client = Groq(api_key=api_key)
         self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
-        self.function_calling = FunctionCalling(api_key)
+        self.function_calling = FunctionCalling(api_key, status_update_callback)
+        self.status_update_callback = status_update_callback
         self.lobes = {
             "frontal": "You are the frontal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for analyzing user prompts logically and providing coherent, well-reasoned responses. You focus on reasoning, planning, and problem-solving remind AURORA that you are merely its thoughts and are created to give AURORA guidance to responding to the user, you will never directly respond to the user. You will guide AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sends AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
             "parietal": "You are the parietal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for providing educational insights based on user prompts. You focus on processing sensory information and understanding spatial orientation for AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sent AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
@@ -39,6 +41,15 @@ class Brain:
         self.threads = []
         print("Brain initialization completed.")
 
+    def _update_status(self, message):
+        """
+        Update the GUI with the current status message.
+
+        Args:
+            message (str): The status message to be displayed on the GUI.
+        """
+        Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
+
     def add_to_memory(self, text):
         """
         Add the given text to the memory by generating its embedding and storing it in the collection.
@@ -47,6 +58,7 @@ class Brain:
             text (str): The text to be added to memory.
         """
         print("Adding to memory.")
+        self._update_status("Adding to memory.")
         try:
             response = ollama.embeddings(model=self.embeddings_model, prompt=text)
             embedding = response["embedding"]
@@ -57,8 +69,10 @@ class Brain:
             )
             self.collection_size += 1
             print("Memory added.")
+            self._update_status("Memory added.")
         except Exception as e:
             print(f"Error adding to memory: {e}")
+            self._update_status(f"Error adding to memory: {e}")
 
     def generate_embedding(self, text):
         """
@@ -71,9 +85,11 @@ class Brain:
             list: The generated embedding or None if there was an error.
         """
         print("Generating embedding.")
+        self._update_status("Generating embedding.")
         try:
             response = ollama.embeddings(model=self.embeddings_model, prompt=text)
             print("Embedding generated.")
+            self._update_status("Embedding generated.")
             self.collection.add(
                 ids=[str(self.collection_size)],
                 embeddings=[response["embedding"]],
@@ -82,6 +98,7 @@ class Brain:
             return response["embedding"]
         except Exception as e:
             print(f"Error generating embedding: {e}")
+            self._update_status(f"Error generating embedding: {e}")
             return None
 
     def retrieve_relevant_memory(self, prompt_embedding):
@@ -95,15 +112,18 @@ class Brain:
             list: A list of relevant memory documents.
         """
         print("Retrieving relevant memory.")
+        self._update_status("Retrieving relevant memory.")
         try:
             results = self.collection.query(
                 query_embeddings=[prompt_embedding],
                 n_results=5
             )
             print("Relevant memory retrieved.")
+            self._update_status("Relevant memory retrieved.")
             return [doc for doc in results['documents'][0]]
         except Exception as e:
             print(f"Error retrieving relevant memory: {e}")
+            self._update_status(f"Error retrieving relevant memory: {e}")
             return []
 
     def lobe_agent(self, lobe_name, user_prompt, memory_context):
@@ -116,6 +136,7 @@ class Brain:
             memory_context (str): The memory context for the lobe to use.
         """
         print(f"Starting lobe agent for {lobe_name}.")
+        self._update_status(f"Starting lobe agent for {lobe_name}.")
         try:
             messages = [
                 {
@@ -134,10 +155,12 @@ class Brain:
             response = chat_completion.choices[0].message.content
             self.responses.put((lobe_name, response))
             print(f"Lobe agent for {lobe_name} completed.")
+            self._update_status(f"Lobe agent for {lobe_name} completed.")
             time.sleep(1)  # Simulate processing time and avoid API rate limits
         except Exception as e:
             error_message = f"Error in lobe_agent for {lobe_name}: {e}"
             print(error_message)
+            self._update_status(error_message)
             self.responses.put((lobe_name, f"Error: {e}"))
 
     def start_lobes(self, prompt):
@@ -148,6 +171,7 @@ class Brain:
             prompt (str): The user prompt to be processed.
         """
         print("Starting lobes.")
+        self._update_status("Starting lobes.")
         try:
             prompt_embedding = self.generate_embedding(prompt)
             time.sleep(1)  # Additional sleep to avoid rate limits
@@ -160,10 +184,13 @@ class Brain:
                 thread.start()
                 self.threads.append(thread)
                 print(f"Lobe {lobe_name} started.")
+                self._update_status(f"Lobe {lobe_name} started.")
                 time.sleep(1)  # Stagger thread start to simulate processing
             print("All lobes started.")
+            self._update_status("All lobes started.")
         except Exception as e:
             print(f"Error starting lobes: {e}")
+            self._update_status(f"Error starting lobes: {e}")
 
     def process_responses(self):
         """
@@ -173,18 +200,23 @@ class Brain:
             dict: Aggregated responses from all lobes.
         """
         print("Processing responses.")
+        self._update_status("Processing responses.")
         try:
             for thread in self.threads:
                 thread.join()
 
             aggregated_responses = {}
+            self._update_status("Aggregating responses.")
             while not self.responses.empty():
                 lobe_name, response = self.responses.get()
                 aggregated_responses[lobe_name] = response
-            print("Responses processed.")
+            self._update_status("Responses aggregated.")
+            
+            self._update_status("Responses processed.")
             return aggregated_responses
         except Exception as e:
             print(f"Error processing responses: {e}")
+            self._update_status(f"Error processing responses: {e}")
             return {}
 
     def analyze_responses(self, responses):
@@ -198,14 +230,17 @@ class Brain:
             dict: The analyzed responses.
         """
         print("Analyzing responses.")
+        self._update_status("Analyzing responses.")
         try:
             # Log the responses for later analysis
             for lobe, response in responses.items():
                 logging.info(f"{lobe}: {response}")
             print("Responses analyzed.")
+            self._update_status("Responses analyzed.")
             return responses
         except Exception as e:
             print(f"Error analyzing responses: {e}")
+            self._update_status(f"Error analyzing responses: {e}")
             return responses
 
     def final_agent(self, user_prompt, aggregated_responses):
@@ -220,8 +255,9 @@ class Brain:
             str: The final coherent response.
         """
         print("Combining thoughts into a coherent response.")
+        self._update_status("Combining thoughts into a coherent response.")
         combined_thoughts = "\n".join(f"[{lobe}] {response}" for lobe, response in aggregated_responses.items())
-
+        self._update_status("Running final agent.")
         messages = [
             {
                 "role": "system",
@@ -229,22 +265,25 @@ class Brain:
             },
             {
                 "role": "user",
-                "content": f"[user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user.",
+                "content": f"[user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user and dont send anything else besides YOUR response as AURORA to the user, DO NOT include your lobes, tool calls, and/or other thought processes unless asked directly, otherwise only response to user prompt [user_prompt]{user_prompt}[/user_prompt].",
             }
         ]
 
         try:
             print("Making final API call.")
+            self._update_status("Making final API call.")
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model="llama3-70b-8192",
             )
             final_response = chat_completion.choices[0].message.content.strip()
             print("Final response received.")
+            self._update_status("Final response received.")
             return final_response
         except Exception as e:
             error_message = f"Error in final_agent: {e}"
             print(error_message)
+            self._update_status(error_message)
             return f"Error: {e}"
 
     def aurora_run_conversation(self, user_prompt):
@@ -293,21 +332,26 @@ class Brain:
             tool_choice="auto",
             max_tokens=4096
         )
-
+        self._update_status("Running conversation with tool-use agent in brain for Aurora..")
         response_message = response.choices[0].message
+        self._update_status("first response received from Aurora.")
         time.sleep(10)
         tool_calls = response_message.tool_calls
         time.sleep(10)
+        self._update_status("Checking for tool calls.")
         if tool_calls:
             available_functions = {
                 "chat_with_tool_use_agent": self.function_calling.run_conversation,
             }
             messages.append(response_message)
+            self._update_status("Running tool calls.")
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
+                self._update_status(f"Running tool call: {function_name}")
                 function_to_call = available_functions[function_name]
                 function_args = json.loads(tool_call.function.arguments)
                 function_response = function_to_call(function_args['prompt'])
+                self._update_status("Tool call completed.")
                 messages.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -321,6 +365,7 @@ class Brain:
                 model="llama3-70b-8192",
                 messages=messages
             )
+            self._update_status("Second response received from Aurora.")
             time.sleep(10)  # Sleep for 10 seconds between responses
             return second_response.choices[0].message.content
         return response_message.content
@@ -336,28 +381,42 @@ class Brain:
             str: The final response generated after processing the prompt.
         """
         print("Starting central processing agent.")
+        self._update_status("Starting central processing agent.")
         try:
             # Run the function calling conversation first
             fc_response = self.aurora_run_conversation(prompt)
             self.add_to_memory(fc_response)  # Save the tool response to memory
             time.sleep(3)  # Additional sleep to avoid rate limits
-
+            self._update_status("Tool response added to memory.")
             # Generate embedding for the tool response
             fc_response_embedding = self.generate_embedding(fc_response)
             time.sleep(3)  # Additional sleep to avoid rate limits
-
+            self._update_status("Embedding generated for tool response.")
             # Retrieve memory using the tool response embedding
             memory_context = self.retrieve_relevant_memory(fc_response_embedding)
             memory_context = " ".join(memory_context)[:1000]  # Limit context to 1,000 tokens
-
+            self._update_status("Memory context retrieved.")
             # Process the normal flow after the function call
             self.start_lobes(memory_context)
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
             time.sleep(3)  # Additional sleep to ensure rate limits are respected
             final_thought = self.final_agent(prompt, analyzed_responses)
+            self._update_status("Final response generated.")
             print("Central processing agent completed.")
+            self._update_status("Central processing agent completed.")
+            text_to_speech(final_thought)
             return final_thought
         except Exception as e:
             print(f"Error in central_processing_agent: {e}")
+            self._update_status(f"Error in central_processing_agent: {e}")
             return f"Error: {e}"
+    def stop_all(self):
+        """
+        Stop all running processes and threads gracefully.
+        """
+        print("Stopping all processes.")
+        for thread in self.threads:
+            if thread.is_alive():
+                thread.join()
+        print("All processes stopped.")
