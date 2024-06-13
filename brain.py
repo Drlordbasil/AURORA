@@ -225,11 +225,11 @@ class Brain:
         messages = [
             {
                 "role": "system",
-                "content": f"You are AURORA, an entity that uses its lobes like a human does subconsciously. Consider the thoughts from all your lobes and use them to formulate a coherent response to the user prompt.\n\n[lobe_context]{combined_thoughts}[/lobe_context]\n\n{FinalAgentPersona.user_info}",
+                "content": f"You are AURORA, an entity that uses its lobes like a human does subconsciously. Consider the thoughts from all your lobes and use them to formulate a coherent response to the user prompt.\n\n[lobe_context]{combined_thoughts}[/lobe_context]\n\n{FinalAgentPersona.user_info} You have access to amazing tools in your chat chains.You can use the tool-use agent to handle tool-specific tasks and return the result. This agent can browse the web for live knowledge, use local commands on a Windows 11 PC, has vision capabilities, and can help you do a variety of tasks. You can also use the tool-use agent to interact with other AI models and APIs to enhance your responses.",
             },
             {
                 "role": "user",
-                "content": f"[user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively.",
+                "content": f"[user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user.",
             }
         ]
 
@@ -260,7 +260,7 @@ class Brain:
         messages = [
             {
                 "role": "system",
-                "content": "You are a function calling LLM that uses the data extracted from various functions to provide detailed responses to the user."
+                "content": "You are a function calling LLM that uses the data extracted from various functions to provide detailed responses to the user.You are Aurora's function calling lobe, responsible for handling tool-specific tasks and returning the result. You can interact with the tool-use agent to perform a variety of tasks, including browsing the web for live knowledge, using local commands on a Windows 11 PC, and leveraging vision capabilities to assist Aurora in responding to the user prompt. You will guide Aurora in utilizing the tool-use agent effectively to enhance its responses."
             },
             {
                 "role": "user",
@@ -272,13 +272,13 @@ class Brain:
                 "type": "function",
                 "function": {
                     "name": "chat_with_tool_use_agent",
-                    "description": "Send a prompt to the tool-use agent to handle tool-specific tasks and return the result.",
+                    "description": "Send a prompt to the tool-use agent to handle tool-specific tasks and return the result. This agent can browse the web for live knowledge, uses local commands on a windows 11 pc, has vision capabilities, and can help you do a variety of tasks.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "prompt": {
                                 "type": "string",
-                                "description": "The prompt to send to the tool-use agent.",
+                                "description": "The prompt to send to the tool-use agent. IE: research the best way to cook a steak., or find the weather in New York City., or find the best way to learn python., or create a new document in the documents folder.",
                             }
                         },
                         "required": ["prompt"],
@@ -295,7 +295,9 @@ class Brain:
         )
 
         response_message = response.choices[0].message
+        time.sleep(10)
         tool_calls = response_message.tool_calls
+        time.sleep(10)
         if tool_calls:
             available_functions = {
                 "chat_with_tool_use_agent": self.function_calling.run_conversation,
@@ -338,11 +340,11 @@ class Brain:
             # Run the function calling conversation first
             fc_response = self.aurora_run_conversation(prompt)
             self.add_to_memory(fc_response)  # Save the tool response to memory
-            time.sleep(1)  # Additional sleep to avoid rate limits
+            time.sleep(3)  # Additional sleep to avoid rate limits
 
             # Generate embedding for the tool response
             fc_response_embedding = self.generate_embedding(fc_response)
-            time.sleep(1)  # Additional sleep to avoid rate limits
+            time.sleep(3)  # Additional sleep to avoid rate limits
 
             # Retrieve memory using the tool response embedding
             memory_context = self.retrieve_relevant_memory(fc_response_embedding)
@@ -352,7 +354,7 @@ class Brain:
             self.start_lobes(memory_context)
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
-            time.sleep(1)  # Additional sleep to ensure rate limits are respected
+            time.sleep(3)  # Additional sleep to ensure rate limits are respected
             final_thought = self.final_agent(prompt, analyzed_responses)
             print("Central processing agent completed.")
             return final_thought
