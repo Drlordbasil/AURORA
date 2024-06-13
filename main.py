@@ -13,6 +13,7 @@ from kivy.animation import Animation
 from kivy.utils import get_color_from_hex
 from kivy.core.window import Window
 from kivy.uix.image import Image
+from kivy.uix.dropdown import DropDown
 from brain import Brain
 
 class BubbleLabel(BoxLayout):
@@ -56,7 +57,12 @@ class AuroraApp(App):
             self.show_error("Error", "GROQ_API_KEY environment variable not set.")
             return
 
-        self.root = BoxLayout(orientation='horizontal', padding=10, spacing=10)
+        self.root = BoxLayout(orientation='vertical', padding=10, spacing=10)
+
+        self.header = BoxLayout(orientation='horizontal', size_hint=(1, 0.1))
+        self.setup_dropdown_menu()
+
+        self.body = BoxLayout(orientation='horizontal', size_hint=(1, 0.9), padding=10, spacing=10)
         
         left_layout = BoxLayout(orientation='vertical', size_hint=(0.75, 1), spacing=10)
         right_layout = BoxLayout(orientation='vertical', size_hint=(0.25, 1), spacing=10)
@@ -101,8 +107,11 @@ class AuroraApp(App):
         right_layout.add_widget(info_label)
         right_layout.add_widget(self.status_label)
 
-        self.root.add_widget(left_layout)
-        self.root.add_widget(right_layout)
+        self.body.add_widget(left_layout)
+        self.body.add_widget(right_layout)
+
+        self.root.add_widget(self.header)
+        self.root.add_widget(self.body)
 
         with self.root.canvas.before:
             Color(0.15, 0.15, 0.15, 1)  # Background color
@@ -112,6 +121,39 @@ class AuroraApp(App):
         self.brain = Brain(api_key, self.update_status)
 
         return self.root
+
+    def setup_dropdown_menu(self):
+        mainmenu_dropdown = DropDown()
+        menu_options = [
+            ("Option 1", self.option1_callback),
+            ("Option 2", self.option2_callback),
+            ("Option 3", self.option3_callback),
+            ("Toggle TTS", self.toggle_tts_callback)
+        ]
+
+        for option, callback in menu_options:
+            btn = Button(text=option, size_hint_y=None, height=44, background_normal='', background_color=(0.2, 0.6, 0.86, 1))
+            btn.bind(on_release=lambda btn: mainmenu_dropdown.select(btn.text))
+            btn.bind(on_release=callback)
+            mainmenu_dropdown.add_widget(btn)
+
+        main_button = Button(text='Menu', size_hint=(None, 1), width=100, background_normal='', background_color=(0.2, 0.6, 0.86, 1))
+        main_button.bind(on_release=mainmenu_dropdown.open)
+        mainmenu_dropdown.bind(on_select=lambda instance, x: setattr(main_button, 'text', x))
+
+        self.header.add_widget(main_button)
+
+    def toggle_tts_callback(self, instance):
+        self.brain.toggle_tts()
+
+    def option1_callback(self, instance):
+        print("Option 1 selected")
+
+    def option2_callback(self, instance):
+        print("Option 2 selected")
+
+    def option3_callback(self, instance):
+        print("Option 3 selected")
 
     def _update_rect(self, instance, value):
         self.rect.size = instance.size
@@ -163,6 +205,7 @@ class AuroraApp(App):
 
     def on_request_close(self, *args):
         self.brain.stop_all()
+        App.get_running_app().stop()
         return True
 
 if __name__ == "__main__":
