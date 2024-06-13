@@ -42,6 +42,7 @@ python main.py
 - `utilities.py`: Provides utility functions for logging and setting up the embedding collection.
 - `final_agent_persona.py`: Defines the persona and user information for the final response agent.
 - `function_calling.py`: defines function calling with run_conversation to auto call functions.
+- `image_vision.py`: defines ollama vision modal to call as a function in function_calling.py
 - `main.py`: The entry point for running the chatbot loop.
 
 ## Contributing
