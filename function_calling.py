@@ -2,6 +2,7 @@ import json
 import subprocess
 import os
 import time
+import requests
 from groq import Groq
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,14 +12,34 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from nltk.tokenize import sent_tokenize
 from textblob import TextBlob
+from image_vision import ImageVision
+from pdfminer.high_level import extract_text
 
 class FunctionCalling:
     MODEL = 'llama3-70b-8192'
 
     def __init__(self, api_key):
         self.client = Groq(api_key=api_key)
+        self.image_vision = ImageVision()
 
     def run_local_command(self, command):
+        """
+        Execute a local command on the system.
+
+        This function runs a specified command on the local system using the subprocess module.
+        It captures the output and error messages from the command execution.
+
+        Parameters:
+        - command (str): The specific command to execute. Example commands include:
+          - 'dir' to list directory contents
+          - 'echo Hello World' to print text
+          - 'date /T' to display the current date
+          - 'time /T' to show the current time
+          - 'python --version' to check the Python version installed
+
+        Returns:
+        - JSON object containing the executed command, its output, and any errors encountered.
+        """
         try:
             if command.lower() == "date":
                 command = "date /T"
@@ -32,6 +53,18 @@ class FunctionCalling:
             return json.dumps({"command": command, "error": str(e)})
 
     def extract_text_from_url(self, url):
+        """
+        Extract text content from a webpage.
+
+        This function uses Selenium to open a webpage, retrieve its HTML content, and extract all text
+        within paragraph tags. The function waits for 2 seconds to ensure the page is fully loaded.
+
+        Parameters:
+        - url (str): The URL of the webpage to extract text from.
+
+        Returns:
+        - The extracted text as a string.
+        """
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
         #options.add_argument('--headless')  # Run in headless mode for efficiency
@@ -51,9 +84,25 @@ class FunctionCalling:
             driver.quit()
 
     def web_research(self, query):
+        """
+        Perform a web research query.
+
+        This function uses Selenium to perform a Google search for a specified query. It extracts the
+        main content from the top search result and its sublinks, filters the content based on sentiment,
+        and returns the aggregated content.
+
+        Parameters:
+        - query (str): The research query to perform. Example queries include:
+          - 'Latest AI trends'
+          - 'Python 3.12 new features'
+          - 'Benefits of using Docker'
+
+        Returns:
+        - JSON object containing the query and the aggregated results.
+        """
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
-        options.add_argument('--headless')  # Run in headless mode for efficiency
+        #options.add_argument('--headless')  # Run in headless mode for efficiency
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
@@ -68,7 +117,7 @@ class FunctionCalling:
             search_results = []
 
             # Get top 3 search results
-            results = soup.select('.tF2Cxc')[:3]
+            results = soup.select('.tF2Cxc')[:1]
             for result in results:
                 title_element = result.select_one('.DKV0Md')
                 link_element = result.select_one('a')
@@ -88,7 +137,7 @@ class FunctionCalling:
                     # Extract content from 2 sublinks
                     driver.get(link)
                     sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    sub_links = sub_soup.select('a')[:2]  # Select first 2 sublinks
+                    sub_links = sub_soup.select('a')[:1]  # Select first 2 sublinks
                     for sub_link in sub_links:
                         sub_url = sub_link.get('href')
                         if sub_url and sub_url.startswith('http'):
@@ -121,11 +170,75 @@ class FunctionCalling:
         finally:
             driver.quit()
 
+    def extract_text_from_pdf(self, pdf_url):
+        """
+        Extract text content from a PDF file.
+
+        This function downloads a PDF from the given URL, extracts its text content using pdfminer,
+        and returns the extracted text.
+
+        Parameters:
+        - pdf_url (str): The URL of the PDF file to extract text from.
+
+        Returns:
+        - JSON object containing the PDF URL and the extracted text.
+        """
+        try:
+            response = requests.get(pdf_url)
+            with open("temp.pdf", "wb") as file:
+                file.write(response.content)
+            text = extract_text("temp.pdf")
+            os.remove("temp.pdf")
+            return json.dumps({"pdf_url": pdf_url, "text": text})
+        except Exception as e:
+            return json.dumps({"pdf_url": pdf_url, "error": str(e)})
+
+    def analyze_sentiment(self, text):
+        """
+        Analyze the sentiment of a given text.
+
+        This function uses TextBlob to analyze the sentiment of the provided text. It returns the
+        polarity and subjectivity of the sentiment.
+
+        Parameters:
+        - text (str): The text to analyze.
+
+        Returns:
+        - JSON object containing the text and its sentiment analysis (polarity and subjectivity).
+        """
+        try:
+            sentiment = TextBlob(text).sentiment
+            return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}})
+        except Exception as e:
+            return json.dumps({"text": text, "error": str(e)})
+
     def run_conversation(self, user_prompt):
         messages = [
             {
                 "role": "system",
-                "content": "You are a function calling LLM that uses the data extracted from local commands and web research functions to provide detailed responses to the user. You are designed to assist with running system commands and performing web research to gather relevant information."
+                "content": (
+                    "You are a function calling LLM that uses the data extracted from local commands "
+                    "and web research functions to provide detailed responses to the user. You are "
+                    "designed to assist with running system commands and performing web research to "
+                    "gather relevant information. You are Aurora's assistant ONLY. Aurora is the main "
+                    "chatbot and you are its assistant that can perform specific tasks. You can run "
+                    "local commands, perform web research, and analyze images to provide detailed "
+                    "responses to the user. You can also interact with other tools and services to "
+                    "enhance the user experience. Here are the specific tasks you can perform:\n"
+                    "- 'run_local_command': Execute a local command on the system. Example commands "
+                    "include: 'dir' to list directory contents, 'echo Hello World' to print text, "
+                    "'date /T' to display the current date, 'time /T' to show the current time, "
+                    "'python --version' to check the Python version installed.\n"
+                    "- 'web_research': Perform a web research query to gather information from online "
+                    "sources. Example queries include: 'Latest AI trends', 'Python 3.12 new features', "
+                    "'Benefits of using Docker'.\n"
+                    "- 'analyze_image': Analyze an image from a provided URL and generate a description "
+                    "of the image's content.\n"
+                    "- 'extract_text_from_pdf': Extract text content from a PDF file. Provide the URL "
+                    "of the PDF file.\n"
+                    "- 'analyze_sentiment': Analyze the sentiment of a given text, providing polarity "
+                    "and subjectivity scores."
+                )
             },
             {
                 "role": "user",
@@ -143,7 +256,7 @@ class FunctionCalling:
                         "properties": {
                             "command": {
                                 "type": "string",
-                                "description": "The specific command to execute on the local system. Examples: 'dir', 'echo Hello World', 'date /T', 'time /T', 'python --version'. These are ONLY examples, use valid command for what user wants IE: if user asks for chrome browser, open it with command 'chrome' not 'dir' or 'echo Hello World' etc.",
+                                "description": "The specific command to execute on the local system.",
                             }
                         },
                         "required": ["command"],
@@ -160,10 +273,61 @@ class FunctionCalling:
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "The research query to perform. Example queries include: 'Latest AI trends', 'Python 3.12 new features', 'Benefits of using Docker', 'How to set up a virtual environment in Python', 'Top 10 programming languages in 2024'.",
+                                "description": "The research query to perform.",
                             }
                         },
                         "required": ["query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "analyze_image",
+                    "description": "Analyze an image from a provided URL and generate a description of the image's content.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "image_url": {
+                                "type": "string",
+                                "description": "The URL of the image to analyze.",
+                            }
+                        },
+                        "required": ["image_url"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "extract_text_from_pdf",
+                    "description": "Extract text content from a PDF file.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "pdf_url": {
+                                "type": "string",
+                                "description": "The URL of the PDF file.",
+                            }
+                        },
+                        "required": ["pdf_url"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "analyze_sentiment",
+                    "description": "Analyze the sentiment of a given text.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "text": {
+                                "type": "string",
+                                "description": "The text to analyze.",
+                            }
+                        },
+                        "required": ["text"],
                     },
                 },
             }
@@ -182,6 +346,9 @@ class FunctionCalling:
             available_functions = {
                 "run_local_command": self.run_local_command,
                 "web_research": self.web_research,
+                "analyze_image": self.image_vision.analyze_image,
+                "extract_text_from_pdf": self.extract_text_from_pdf,
+                "analyze_sentiment": self.analyze_sentiment,
             }
             messages.append(response_message)
             for tool_call in tool_calls:
@@ -219,25 +386,15 @@ if __name__ == "__main__":
         brain_instance = Brain(api_key)
         fc = FunctionCalling(api_key)
         
-        # Test prompts for run_local_command function
+        # Test prompts for all functions
         user_prompts = [
-            "Please run a command to list directory contents.",
-            "Execute the command to display the current date.",
-            "Execute the command to display the current time.",
-            "Show the current Python version."
+            "analyze this image:https://i.gyazo.com/3fec0307e8c73b23d3871d113d63647d.png",
+            "Show the current Python version.",
+            "Look up the benefits of using Docker.",
+            "Extract text from this PDF: https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            "Analyze the sentiment of this text: I am so happy with the results!"
         ]
         for prompt in user_prompts:
-            print(f"Testing run_conversation with prompt: {prompt}")
-            print(fc.run_conversation(prompt))
-            time.sleep(10)  # Sleep for 10 seconds between tests
-        
-        # Test prompts for web_research function
-        research_prompts = [
-            "Search for the latest AI trends.",
-            "Find information about Python 3.12 new features.",
-            "Look up the benefits of using Docker."
-        ]
-        for prompt in research_prompts:
             print(f"Testing run_conversation with prompt: {prompt}")
             print(fc.run_conversation(prompt))
             time.sleep(10)  # Sleep for 10 seconds between tests
