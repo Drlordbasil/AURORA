@@ -9,7 +9,10 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.clock import Clock
+from kivy.animation import Animation
 from kivy.utils import get_color_from_hex
+from kivy.core.window import Window
+from kivy.uix.image import Image
 from brain import Brain
 
 class BubbleLabel(BoxLayout):
@@ -44,17 +47,20 @@ class BubbleLabel(BoxLayout):
         self.rect.size = instance.size
         self.rect.pos = instance.pos
 
-class ChatbotApp(App):
+class AuroraApp(App):
     def build(self):
+        Window.bind(on_request_close=self.on_request_close)
+
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             self.show_error("Error", "GROQ_API_KEY environment variable not set.")
             return
 
-        self.brain = Brain(api_key)
+        self.root = BoxLayout(orientation='horizontal', padding=10, spacing=10)
         
-        self.root = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        
+        left_layout = BoxLayout(orientation='vertical', size_hint=(0.75, 1), spacing=10)
+        right_layout = BoxLayout(orientation='vertical', size_hint=(0.25, 1), spacing=10)
+
         self.chat_display = ScrollView(size_hint=(1, 0.8))
         self.chat_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10, padding=10)
         self.chat_content.bind(minimum_height=self.chat_content.setter('height'))
@@ -71,21 +77,48 @@ class ChatbotApp(App):
         
         self.buttons_layout.add_widget(self.send_button)
         self.buttons_layout.add_widget(self.clear_button)
-        
-        self.root.add_widget(self.chat_display)
-        self.root.add_widget(self.prompt_input)
-        self.root.add_widget(self.buttons_layout)
-        
+
+        left_layout.add_widget(self.chat_display)
+        left_layout.add_widget(self.prompt_input)
+        left_layout.add_widget(self.buttons_layout)
+
+        info_label = Label(
+            text="AURORA: Artificial Unified Responsive Optimized Reasoning Agent\n\nFeatures:\n- Execute local commands\n- Perform web research\n- Analyze images\n- Extract text from PDFs\n- Analyze sentiment\n\nAurora assists you with a variety of tasks by using its advanced AI capabilities.",
+            size_hint=(1, 0.6),
+            font_size="16sp",
+            color=(1, 1, 1, 1),
+            halign="center",
+            valign="top",
+            text_size=(300, None)
+        )
+
+        self.status_label = Label(size_hint=(1, 0.1), font_size=16, color=(0.5, 0.5, 0.5, 1), halign="center", valign="middle")
+        self.status_label.bind(size=self._update_status_rect)
+
+        logo = Image(source='aurora.png', size_hint=(1, 0.3))
+
+        right_layout.add_widget(logo)
+        right_layout.add_widget(info_label)
+        right_layout.add_widget(self.status_label)
+
+        self.root.add_widget(left_layout)
+        self.root.add_widget(right_layout)
+
         with self.root.canvas.before:
             Color(0.15, 0.15, 0.15, 1)  # Background color
             self.rect = Rectangle(size=self.root.size, pos=self.root.pos)
             self.root.bind(size=self._update_rect, pos=self._update_rect)
-        
+
+        self.brain = Brain(api_key, self.update_status)
+
         return self.root
 
     def _update_rect(self, instance, value):
         self.rect.size = instance.size
         self.rect.pos = instance.pos
+
+    def _update_status_rect(self, instance, value):
+        instance.text_size = instance.size
 
     def show_error(self, title, message):
         popup = Popup(title=title, content=Label(text=message), size_hint=(None, None), size=(400, 200))
@@ -102,10 +135,13 @@ class ChatbotApp(App):
 
     def send_message(self, prompt):
         try:
+            self.update_status("Processing...", animation=True)
             response = self.brain.central_processing_agent(prompt)
             Clock.schedule_once(lambda dt: self.display_message(f"AURORA: {response}", user=False), 0)
+            Clock.schedule_once(lambda dt: self.update_status("Completed"), 0)
         except Exception as e:
             Clock.schedule_once(lambda dt: self.display_message(f"Error processing prompt: {e}", user=False), 0)
+            Clock.schedule_once(lambda dt: self.update_status("Error"), 0)
 
     def display_message(self, message, user=True):
         background_color = get_color_from_hex("#1e1e1e") if user else get_color_from_hex("#2e7d32")
@@ -116,5 +152,18 @@ class ChatbotApp(App):
     def clear_chat(self, instance):
         self.chat_content.clear_widgets()
 
+    def update_status(self, message, animation=False):
+        self.status_label.text = message
+        if animation:
+            anim = Animation(color=(1, 1, 1, 1), duration=0.5) + Animation(color=(0.5, 0.5, 0.5, 1), duration=0.5)
+            anim.repeat = True
+            anim.start(self.status_label)
+        else:
+            self.status_label.color = (0.5, 0.5, 0.5, 1)
+
+    def on_request_close(self, *args):
+        self.brain.stop_all()
+        return True
+
 if __name__ == "__main__":
-    ChatbotApp().run()
+    AuroraApp().run()
