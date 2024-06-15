@@ -1,9 +1,3 @@
-################################################################
-#To be added as an option in menu of GUI to change API provider. 
-#This will be further worked on before adding and replacing all api calls within AURORAS thought processing.
-  # This should help further expansions as well or mix and matching for future.
-
-################################################################
 import json
 import os
 import subprocess
@@ -37,9 +31,11 @@ documents = [
 chromadb_client = chromadb.Client()
 collection = chromadb_client.create_collection(name="aurora_test_phase")
 
-
-
-
+# display current time
+def time_now():
+    return time.strftime("%H:%M:%S")
+time = time_now()
+print(time)
 tools = [
             {
                 "type": "function",
@@ -137,7 +133,7 @@ def choose_API_provider():
         client (object): The API client instance.
         model (str): The model name.
     """
-    llm = "OpenAI" # Change this to the desired API provider: "OpenAI", "ollama", or "Groq"
+    llm = "Groq" # Change this to the desired API provider: "OpenAI", "ollama", or "Groq"
     
     if llm == "OpenAI":
         api_key = os.environ.get("OPENAI_API_KEY") or input("Enter your OpenAI API key: ").strip()
@@ -594,7 +590,7 @@ class LLM_API_Calls:
 
 # def chat_loop():
 #     print("Welcome to the chatbot. Type 'exit' to end the chat.")
-#     system_prompt = "You are a multi-use function calling LLM"
+#     system_prompt = f"You are a multi-use function calling LLM. current time is {time}"
     
 #     while True:
 #         try:
