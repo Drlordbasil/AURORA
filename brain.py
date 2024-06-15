@@ -30,7 +30,7 @@ class Brain:
         self.tts_enabled = True  # Text-to-Speech flag
         self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
-        self.function_calling = FunctionCalling(api_key, status_update_callback)
+        self.function_calling = FunctionCalling(status_update_callback)
         self.status_update_callback = status_update_callback
         self.lobes = {
             "frontal": "You are the frontal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for analyzing user prompts logically and providing coherent, well-reasoned responses. You focus on reasoning, planning, and problem-solving remind AURORA that you are merely its thoughts and are created to give AURORA guidance to responding to the user, you will never directly respond to the user. You will guide AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sends AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
@@ -159,10 +159,12 @@ class Brain:
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model="llama3-70b-8192",
+                temperature=1,
             )
             response = chat_completion.choices[0].message.content
             self.responses.put((lobe_name, response))
             print(f"Lobe agent for {lobe_name} completed.")
+
             self._update_status(f"Lobe agent for {lobe_name} completed.")
             time.sleep(1)  # Simulate processing time and avoid API rate limits
         except Exception as e:
@@ -170,7 +172,44 @@ class Brain:
             print(error_message)
             self._update_status(error_message)
             self.responses.put((lobe_name, f"Error: {e}"))
+    def retrieve_context(self, user_prompt, memory_context):
+        """
+        Retrieve the context for the user prompt based on the memory context provided.
 
+        Args:
+            user_prompt (str): The user prompt.
+            memory_context (str): The memory context for the user prompt.
+
+        Returns:
+            str: The context for the user prompt.
+        """
+        print("Retrieving context.")
+        self._update_status("Retrieving context.")
+        try:
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are the context retrieval agent for AURORA (Artificial Unified Responsive Optimized Reasoning Agent). Your role is to analyze the user prompt and memory context to provide a coherent context that combines both elements. Consider the user prompt and memory context to create a meaningful context that helps AURORA generate a well-informed response.",
+                },
+                {
+                    "role": "user",
+                    "content": f"[user_prompt]Message from the user: {user_prompt}[/user_prompt]\n\nMemory Context: {memory_context}\n\n### Provide a coherent context that combines the user prompt and memory context to guide AURORA in generating a well-informed response. ###",
+                },
+            ]
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model="llama3-70b-8192",
+                temperature=1,
+            )
+            response = chat_completion.choices[0].message.content
+            print("Context retrieved.")
+            self._update_status("Context retrieved.")
+            return response
+        except Exception as e:
+            error_message = f"Error in retrieve_context: {e}"
+            print(error_message)
+            self._update_status(error_message)
+            return f"Error: {e}"
     def start_lobes(self, prompt):
         """
         Start the processing of user prompt by each lobe.
@@ -219,7 +258,7 @@ class Brain:
                 lobe_name, response = self.responses.get()
                 aggregated_responses[lobe_name] = response
             self._update_status("Responses aggregated.")
-            
+            self.add_to_memory("\n".join(aggregated_responses.values()))
             self._update_status("Responses processed.")
             return aggregated_responses
         except Exception as e:
@@ -273,7 +312,7 @@ class Brain:
             },
             {
                 "role": "user",
-                "content": f"[user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user and dont send anything else besides YOUR response as AURORA to the user, DO NOT include your lobes, tool calls, and/or other thought processes unless asked directly, otherwise only response to user prompt [user_prompt]{user_prompt}[/user_prompt].",
+                "content": f"[context]{self.retrieve_context}[/context][user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user and dont send anything else besides YOUR response as AURORA to the user, DO NOT include your lobes, tool calls, and/or other thought processes unless asked directly, otherwise only response to user prompt [user_prompt]{user_prompt}[/user_prompt].",
             }
         ]
 
