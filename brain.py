@@ -11,6 +11,7 @@ from final_agent_persona import FinalAgentPersona
 from function_calling import FunctionCalling
 from speaker import text_to_speech
 from kivy.clock import Clock
+
 class Brain:
     """
     The Brain class simulates a human-like brain structure with different lobes responsible for
@@ -24,6 +25,7 @@ class Brain:
 
         Args:
             api_key (str): The API key for accessing the Groq service.
+            status_update_callback (callable): Callback function to update status in the GUI.
         """
         print("Initializing Brain with API key.")
         self.client = Groq(api_key=api_key)
@@ -33,14 +35,16 @@ class Brain:
         self.function_calling = FunctionCalling(status_update_callback)
         self.status_update_callback = status_update_callback
         self.lobes = {
-            "frontal": "You are the frontal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for analyzing user prompts logically and providing coherent, well-reasoned responses. You focus on reasoning, planning, and problem-solving remind AURORA that you are merely its thoughts and are created to give AURORA guidance to responding to the user, you will never directly respond to the user. You will guide AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sends AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
-            "parietal": "You are the parietal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for providing educational insights based on user prompts. You focus on processing sensory information and understanding spatial orientation for AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sent AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
-            "temporal": "You are the temporal lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for contextualizing user prompts socially and providing responses that consider social aspects. You focus on processing auditory information and understanding language for AURORA (Artificial Unified Responsive Optimized Reasoning Agent) based on what user sent to AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
-            "occipital": "You are the occipital lobe of AURORA (Artificial Unified Responsive Optimized Reasoning Agent), responsible for describing things visually based on user prompts, providing vivid and clear descriptions. You focus on processing visual information for AURORA (Artificial Unified Responsive Optimized Reasoning Agent).",
+            "frontal": "You are the frontal lobe of AURORA, responsible for analyzing user prompts logically and providing coherent, well-reasoned responses. Focus on reasoning, planning, and problem-solving. Guide AURORA based on the user input without directly responding to the user.",
+            "parietal": "You are the parietal lobe of AURORA, responsible for providing educational insights based on user prompts. Focus on processing sensory information and understanding spatial orientation to guide AURORA based on the user input.",
+            "temporal": "You are the temporal lobe of AURORA, responsible for contextualizing user prompts socially and providing responses considering social aspects. Focus on processing auditory information and understanding language to guide AURORA based on the user input.",
+            "occipital": "You are the occipital lobe of AURORA, responsible for describing things visually based on user prompts, providing vivid and clear descriptions. Focus on processing visual information to guide AURORA based on the user input.",
         }
         self.responses = Queue()
         self.threads = []
+        self.chat_history = []  # To keep track of the chat history
         print("Brain initialization completed.")
+
     def toggle_tts(self):
         """
         Toggle the Text-to-Speech functionality on or off.
@@ -49,6 +53,7 @@ class Brain:
         status = "enabled" if self.tts_enabled else "disabled"
         print(f"Text-to-Speech {status}")
         self._update_status(f"Text-to-Speech {status}")
+
     def _update_status(self, message):
         """
         Update the GUI with the current status message.
@@ -164,7 +169,6 @@ class Brain:
             response = chat_completion.choices[0].message.content
             self.responses.put((lobe_name, response))
             print(f"Lobe agent for {lobe_name} completed.")
-
             self._update_status(f"Lobe agent for {lobe_name} completed.")
             time.sleep(1)  # Simulate processing time and avoid API rate limits
         except Exception as e:
@@ -172,6 +176,7 @@ class Brain:
             print(error_message)
             self._update_status(error_message)
             self.responses.put((lobe_name, f"Error: {e}"))
+
     def retrieve_context(self, user_prompt, memory_context):
         """
         Retrieve the context for the user prompt based on the memory context provided.
@@ -210,22 +215,18 @@ class Brain:
             print(error_message)
             self._update_status(error_message)
             return f"Error: {e}"
-    def start_lobes(self, prompt):
+
+    def start_lobes(self, prompt, memory_context):
         """
         Start the processing of user prompt by each lobe.
 
         Args:
             prompt (str): The user prompt to be processed.
+            memory_context (str): The memory context for the lobe to use.
         """
         print("Starting lobes.")
         self._update_status("Starting lobes.")
         try:
-            prompt_embedding = self.generate_embedding(prompt)
-            time.sleep(1)  # Additional sleep to avoid rate limits
-            memory_context = self.retrieve_relevant_memory(prompt_embedding)
-            time.sleep(1)  # Additional sleep to avoid rate limits
-            memory_context = " ".join(memory_context)[:1000]  # Limit context to 1,000 tokens
-
             for lobe_name in self.lobes.keys():
                 thread = threading.Thread(target=self.lobe_agent, args=(lobe_name, prompt, memory_context))
                 thread.start()
@@ -289,7 +290,6 @@ class Brain:
             print(f"Error analyzing responses: {e}")
             self._update_status(f"Error analyzing responses: {e}")
             return responses
-
     def final_agent(self, user_prompt, aggregated_responses):
         """
         Combine the thoughts from all lobes into a coherent final response.
@@ -305,14 +305,15 @@ class Brain:
         self._update_status("Combining thoughts into a coherent response.")
         combined_thoughts = "\n".join(f"[{lobe}] {response}" for lobe, response in aggregated_responses.items())
         self._update_status("Running final agent.")
+        
         messages = [
             {
                 "role": "system",
-                "content": f"You are AURORA, an entity that uses its lobes like a human does subconsciously. Consider the thoughts from all your lobes and use them to formulate a coherent response to the user prompt.\n\n[lobe_context]{combined_thoughts}[/lobe_context]\n\n{FinalAgentPersona.user_info} You have access to amazing tools in your chat chains.You can use the tool-use agent to handle tool-specific tasks and return the result. This agent can browse the web for live knowledge, use local commands on a Windows 11 PC, has vision capabilities, and can help you do a variety of tasks. You can also use the tool-use agent to interact with other AI models and APIs to enhance your responses.",
+                "content": f"You are AURORA, an entity that uses its lobes like a human does subconsciously. Consider the thoughts from all your lobes and use them to formulate a coherent response to the user prompt.\n\n[lobe_context]{combined_thoughts}[/lobe_context]\n\n{FinalAgentPersona.user_info} You have access to amazing tools in your chat chains. You can use the tool-use agent to handle tool-specific tasks and return the result. This agent can browse the web for live knowledge, use local commands on a Windows 11 PC, has vision capabilities, and can help you do a variety of tasks. You can also use the tool-use agent to interact with other AI models and APIs to enhance your responses.",
             },
             {
                 "role": "user",
-                "content": f"[context]{self.retrieve_context}[/context][user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user and dont send anything else besides YOUR response as AURORA to the user, DO NOT include your lobes, tool calls, and/or other thought processes unless asked directly, otherwise only response to user prompt [user_prompt]{user_prompt}[/user_prompt].",
+                "content": f"[context]{self.retrieve_context}[/context][user_prompt]{user_prompt}[/user_prompt]\n\nBased on the thoughts from your lobes, provide a coherent response to the user prompt. Incorporate the insights and suggestions provided by your lobes to address the user's query effectively. Send only your response to the user and don't send anything else besides YOUR response as AURORA to the user. DO NOT include your lobes, tool calls, and/or other thought processes unless asked directly, otherwise only respond to the user prompt [user_prompt]{user_prompt}[/user_prompt].",
             }
         ]
 
@@ -326,12 +327,49 @@ class Brain:
             final_response = chat_completion.choices[0].message.content.strip()
             print("Final response received.")
             self._update_status("Final response received.")
-            return final_response
+            
+            # Simplify the final response
+            simplified_response = self.simplify_response(final_response)
+            return simplified_response
         except Exception as e:
             error_message = f"Error in final_agent: {e}"
             print(error_message)
             self._update_status(error_message)
             return f"Error: {e}"
+    def simplify_response(self, final_response):
+        """
+        Simplify the final response to make it more concise.
+
+        Args:
+            final_response (str): The original final response.
+
+        Returns:
+            str: The simplified final response.
+        """
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a concise assistant. Your goal is to simplify responses without losing the main message.",
+            },
+            {
+                "role": "user",
+                "content": f"Please simplify the following response: {final_response} and only return the response, no context, just the response as if you are sending it to the intended user.",
+            }
+        ]
+        
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model="llama3-70b-8192",
+            )
+            simplified_response = chat_completion.choices[0].message.content.strip()
+            return simplified_response
+        except Exception as e:
+            error_message = f"Error in simplify_response: {e}"
+            print(error_message)
+            return final_response  # Fallback to original response if there's an error
+
+
 
     def aurora_run_conversation(self, user_prompt):
         """
@@ -343,22 +381,19 @@ class Brain:
         Returns:
             str: The final response generated after processing the prompt.
         """
+        self.chat_history.append({"role": "user", "content": user_prompt})
         messages = [
             {
                 "role": "system",
-                "content": "You are a function calling LLM that uses the data extracted from various functions to provide detailed responses to the user.You are Aurora's function calling lobe, responsible for handling tool-specific tasks and returning the result. You can interact with the tool-use agent to perform a variety of tasks, including browsing the web for live knowledge, using local commands on a Windows 11 PC, and leveraging vision capabilities to assist Aurora in responding to the user prompt. You will guide Aurora in utilizing the tool-use agent effectively to enhance its responses."
+                "content": "You are a function calling LLM that uses the data extracted from various functions to provide detailed responses to the user. You are Aurora's function calling lobe, responsible for handling tool-specific tasks and returning the result. You can interact with the tool-use agent to perform a variety of tasks, including browsing the web for live knowledge, using local commands on a Windows 11 PC, and leveraging vision capabilities to assist Aurora in responding to the user prompt. You will guide Aurora in utilizing the tool-use agent effectively to enhance its responses."
             },
-            {
-                "role": "user",
-                "content": user_prompt,
-            }
-        ]
+        ] + self.chat_history
         tools = [
             {
                 "type": "function",
                 "function": {
                     "name": "chat_with_tool_use_agent",
-                    "description": "Send a prompt to the tool-use agent to handle tool-specific tasks and return the result. This agent can browse the web for live knowledge, uses local commands on a windows 11 pc, has vision capabilities, and can help you do a variety of tasks.",
+                    "description": "Send a prompt to the tool-use agent to handle tool-specific tasks and return the result. This agent can browse the web for live knowledge, use local commands on a windows 11 pc, has vision capabilities, and can help you do a variety of tasks.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -381,7 +416,8 @@ class Brain:
         )
         self._update_status("Running conversation with tool-use agent in brain for Aurora..")
         response_message = response.choices[0].message
-        self._update_status("first response received from Aurora.")
+        self.chat_history.append(response_message)
+        self._update_status("First response received from Aurora.")
         time.sleep(10)
         tool_calls = response_message.tool_calls
         time.sleep(10)
@@ -390,7 +426,6 @@ class Brain:
             available_functions = {
                 "chat_with_tool_use_agent": self.function_calling.run_conversation,
             }
-            messages.append(response_message)
             self._update_status("Running tool calls.")
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
@@ -399,7 +434,7 @@ class Brain:
                 function_args = json.loads(tool_call.function.arguments)
                 function_response = function_to_call(function_args['prompt'])
                 self._update_status("Tool call completed.")
-                messages.append(
+                self.chat_history.append(
                     {
                         "tool_call_id": tool_call.id,
                         "role": "tool",
@@ -410,11 +445,13 @@ class Brain:
                 time.sleep(10)  # Sleep for 10 seconds between function calls
             second_response = self.client.chat.completions.create(
                 model="llama3-70b-8192",
-                messages=messages
+                messages=self.chat_history
             )
             self._update_status("Second response received from Aurora.")
             time.sleep(10)  # Sleep for 10 seconds between responses
+            self.chat_history.append(second_response.choices[0].message)
             return second_response.choices[0].message.content
+        self.chat_history.append(response_message)
         return response_message.content
 
     def central_processing_agent(self, prompt):
@@ -444,7 +481,7 @@ class Brain:
             memory_context = " ".join(memory_context)[:1000]  # Limit context to 1,000 tokens
             self._update_status("Memory context retrieved.")
             # Process the normal flow after the function call
-            self.start_lobes(memory_context)
+            self.start_lobes(prompt, memory_context)
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
             time.sleep(3)  # Additional sleep to ensure rate limits are respected
@@ -453,18 +490,11 @@ class Brain:
             print("Central processing agent completed.")
             self._update_status("Central processing agent completed.")
             if self.tts_enabled:
-                text_to_speech(final_thought)
+                summarized_for_tts = self.final_agent(f"make this easy for TTS and remove anything that isn't Natural language: {final_thought}", analyzed_responses)
+                text_to_speech(summarized_for_tts)
             return final_thought
         except Exception as e:
             print(f"Error in central_processing_agent: {e}")
             self._update_status(f"Error in central_processing_agent: {e}")
             return f"Error: {e}"
-    def stop_all(self):
-        """
-        Stop all running processes and threads gracefully.
-        """
-        print("Stopping all processes.")
-        for thread in self.threads:
-            if thread.is_alive():
-                thread.join()
-        print("All processes stopped.")
+
