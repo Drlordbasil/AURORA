@@ -1,3 +1,4 @@
+import os
 import threading
 from queue import Queue
 from groq import Groq
@@ -11,6 +12,8 @@ from final_agent_persona import FinalAgentPersona
 from function_calling import FunctionCalling
 from speaker import text_to_speech
 from kivy.clock import Clock
+
+
 
 class Brain:
     """
@@ -44,6 +47,7 @@ class Brain:
         self.threads = []
         self.chat_history = []  # To keep track of the chat history
         print("Brain initialization completed.")
+
 
     def toggle_tts(self):
         """
@@ -128,8 +132,7 @@ class Brain:
         self._update_status("Retrieving relevant memory.")
         try:
             results = self.collection.query(
-                query_embeddings=[prompt_embedding],
-                n_results=5
+                query_embeddings=[prompt_embedding]
             )
             print("Relevant memory retrieved.")
             self._update_status("Relevant memory retrieved.")
@@ -204,7 +207,7 @@ class Brain:
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model="llama3-70b-8192",
-                temperature=1,
+                temperature=0,
             )
             response = chat_completion.choices[0].message.content
             print("Context retrieved.")
@@ -497,4 +500,5 @@ class Brain:
             print(f"Error in central_processing_agent: {e}")
             self._update_status(f"Error in central_processing_agent: {e}")
             return f"Error: {e}"
+
 
