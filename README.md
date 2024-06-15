@@ -1,5 +1,6 @@
 STABLE: Yes
-
+ONLY HAS BEEN RAN LOCALLY ON WINDOWS:
+AMD Ryzen 7 5800H with Radeon Graphics
 NOTE: I only use local modals on ollama and groq because its free. 
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
