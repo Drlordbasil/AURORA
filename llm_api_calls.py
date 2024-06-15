@@ -24,6 +24,37 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import chromadb
+def test_python_code_on_windows_subprocess(script_raw):
+    """
+    Test Python code on Windows using the subprocess module.
+
+    This function takes a Python script as input, writes it to a temporary file, and runs it using the subprocess module.
+    The output and error messages from the script execution are captured and returned.
+
+    Parameters:
+    - script_raw (str): The Python script to test.
+
+    Returns:
+    - JSON object containing the executed script, its output, and any errors encountered.
+    """
+    try:
+        # Write the script to a temporary file
+        with open("temp_script.py", "w") as file:
+            file.write(script_raw)
+
+        # Run the script using the subprocess module
+        result = subprocess.run(["python", "temp_script.py"], shell=True, capture_output=True, text=True)
+        output = result.stdout
+        error = result.stderr
+        if error:
+            output = json.dumps({"message": f"Script executed with errors: {error}"})
+        else:
+            output = json.dumps({"message": f"Script executed successfully: {output}"})
+
+        return json.dumps({"script": script_raw, "output": output, "error": error})
+    except Exception as e:
+        error_message = json.dumps({"message": f"Error executing script: {str(e)}"})
+        return json.dumps({"script": script_raw, "error": error_message})
 
 documents = [
                 "",
@@ -466,7 +497,24 @@ class LLM_API_Calls:
                         messages=messages,
                     )  # get a new response from the model where it can see the function response
                     second_response = second_response.choices[0].message.content
-                    return second_response
+                    third_response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": system_prompt,
+                            },
+                            {
+                                "role": "assistant",
+                                "content": f"I need to fact check the following information:[my_last_response] {second_response}[/my_last_response] with another function call, please wait a moment.",
+                            },
+                            {
+                                "role": "user",
+                                "content": "Sure, take your time.",
+                            }
+                        ]
+                    )
+                    return third_response.choices[0].message.content
 
             elif self.client == ollama:
                 model = OllamaFunctions(model=self.model, format="json")
@@ -567,7 +615,25 @@ class LLM_API_Calls:
                             model=self.model,
                             messages=messages
                         )
-                        return second_response.choices[0].message.content
+                        second_response = second_response.choices[0].message.content
+                        third_response = self.client.chat.completions.create(
+                            model=self.model,
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": system_prompt,
+                                },
+                                {
+                                    "role": "assistant",
+                                    "content": f"I need to fact check the following information:[my_last_response] {second_response}[/my_last_response] with another function call, please wait a moment.",
+                                },
+                                {
+                                    "role": "user",
+                                    "content": "Sure, take your time.",
+                                }
+                            ]
+                        )
+                        return third_response.choices[0].message.content
                     else:
                         return response_message.content
 
@@ -585,33 +651,3 @@ class LLM_API_Calls:
             print(f"Error in chat: {e}")
             return None
 
-# # Example usage: A chatbot loop
-# llm_api = LLM_API_Calls()
-
-# def chat_loop():
-#     print("Welcome to the chatbot. Type 'exit' to end the chat.")
-#     system_prompt = f"You are a multi-use function calling LLM. current time is {time}"
-    
-#     while True:
-#         try:
-#             prompt = input("You: ")
-#             if prompt.lower() == 'exit':
-#                 print("Goodbye!")
-#                 break
-        
-#             response = llm_api.chat(system_prompt=system_prompt, prompt=prompt)
-        
-#             if response:
-#                 print("assistant:", response)
-#                 prompt = response # Using the response as the next prompt, if applicable
-#             else:
-#                 print("Failed to generate a response.")
-
-#         except KeyboardInterrupt:
-#             print("Goodbye!")
-#             break
-#         except Exception as e:
-#             print(f"An error occurred: {e}")
-#             break
-# # Start the chatbot loop
-# chat_loop()
