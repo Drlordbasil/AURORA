@@ -14,6 +14,7 @@ from kivy.utils import get_color_from_hex
 from kivy.core.window import Window
 from kivy.uix.image import Image
 from kivy.uix.dropdown import DropDown
+from kivy.uix.spinner import Spinner
 from brain import Brain
 
 class BubbleLabel(BoxLayout):
@@ -36,7 +37,7 @@ class BubbleLabel(BoxLayout):
             valign="middle",
             text_size=(600, None),  # Set a maximum width for text wrapping
             font_size="18sp",
-            color=(1, 1, 1, 1),
+            color=(0.2, 1, 0.2, 1),  # Green text for retro look
             bold=True,
         )
         label.bind(texture_size=label.setter("size"))
@@ -72,13 +73,13 @@ class AuroraApp(App):
         self.chat_content.bind(minimum_height=self.chat_content.setter('height'))
         self.chat_display.add_widget(self.chat_content)
         
-        self.prompt_input = TextInput(size_hint=(1, 0.1), multiline=False, font_size=20, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1), cursor_color=(1, 1, 1, 1))
+        self.prompt_input = TextInput(size_hint=(1, 0.1), multiline=False, font_size=20, background_color=(0, 0, 0, 1), foreground_color=(0.2, 1, 0.2, 1), cursor_color=(0.2, 1, 0.2, 1))
         self.prompt_input.bind(on_text_validate=self.on_send_button_press)
         
         self.buttons_layout = BoxLayout(size_hint=(1, 0.1), spacing=10)
-        self.send_button = Button(text="Send", size_hint=(0.5, 1), background_color=(0.2, 0.6, 0.86, 1), font_size=20)
+        self.send_button = Button(text="Send", size_hint=(0.5, 1), background_color=(0.2, 0.6, 0.86, 1), font_size=20, color=(1, 1, 1, 1))
         self.send_button.bind(on_press=self.on_send_button_press)
-        self.clear_button = Button(text="Clear Chat", size_hint=(0.5, 1), background_color=(0.86, 0.36, 0.36, 1), font_size=20)
+        self.clear_button = Button(text="Clear Chat", size_hint=(0.5, 1), background_color=(0.86, 0.36, 0.36, 1), font_size=20, color=(1, 1, 1, 1))
         self.clear_button.bind(on_press=self.clear_chat)
         
         self.buttons_layout.add_widget(self.send_button)
@@ -92,13 +93,13 @@ class AuroraApp(App):
             text="AURORA: Artificial Unified Responsive Optimized Reasoning Agent\n\nFeatures:\n- Execute local commands\n- Perform web research\n- Analyze images\n- Extract text from PDFs\n- Analyze sentiment\n\nAurora assists you with a variety of tasks by using its advanced AI capabilities.",
             size_hint=(1, 0.6),
             font_size="16sp",
-            color=(1, 1, 1, 1),
+            color=(0.2, 1, 0.2, 1),  # Green text for retro look
             halign="center",
             valign="top",
             text_size=(300, None)
         )
 
-        self.status_label = Label(size_hint=(1, 0.1), font_size=16, color=(0.5, 0.5, 0.5, 1), halign="center", valign="middle")
+        self.status_label = Label(size_hint=(1, 0.1), font_size=16, color=(0.2, 1, 0.2, 1), halign="center", valign="middle")
         self.status_label.bind(size=self._update_status_rect)
 
         logo = Image(source='aurora.png', size_hint=(1, 0.3))
@@ -114,7 +115,7 @@ class AuroraApp(App):
         self.root.add_widget(self.body)
 
         with self.root.canvas.before:
-            Color(0.15, 0.15, 0.15, 1)  # Background color
+            Color(0, 0, 0, 1)  # Background color
             self.rect = Rectangle(size=self.root.size, pos=self.root.pos)
             self.root.bind(size=self._update_rect, pos=self._update_rect)
 
@@ -128,20 +129,30 @@ class AuroraApp(App):
             ("Option 1", self.option1_callback),
             ("Option 2", self.option2_callback),
             ("Option 3", self.option3_callback),
-            ("Toggle TTS", self.toggle_tts_callback)
+            ("Toggle TTS", self.toggle_tts_callback),
+            ("Help", self.show_help)
         ]
 
         for option, callback in menu_options:
-            btn = Button(text=option, size_hint_y=None, height=44, background_normal='', background_color=(0.2, 0.6, 0.86, 1))
+            btn = Button(text=option, size_hint_y=None, height=44, background_normal='', background_color=(0.2, 0.6, 0.86, 1), color=(1, 1, 1, 1))
             btn.bind(on_release=lambda btn: mainmenu_dropdown.select(btn.text))
             btn.bind(on_release=callback)
             mainmenu_dropdown.add_widget(btn)
 
-        main_button = Button(text='Menu', size_hint=(None, 1), width=100, background_normal='', background_color=(0.2, 0.6, 0.86, 1))
+        main_button = Button(text='Menu', size_hint=(None, 1), width=100, background_normal='', background_color=(0.2, 0.6, 0.86, 1), color=(1, 1, 1, 1))
         main_button.bind(on_release=mainmenu_dropdown.open)
         mainmenu_dropdown.bind(on_select=lambda instance, x: setattr(main_button, 'text', x))
 
         self.header.add_widget(main_button)
+
+    def show_help(self, instance):
+        help_popup = Popup(
+            title="Help",
+            content=Label(text="This is the help section. You can find information about how to use the application here.", color=(0.2, 1, 0.2, 1)),
+            size_hint=(None, None),
+            size=(400, 400)
+        )
+        help_popup.open()
 
     def toggle_tts_callback(self, instance):
         self.brain.toggle_tts()
@@ -163,7 +174,7 @@ class AuroraApp(App):
         instance.text_size = instance.size
 
     def show_error(self, title, message):
-        popup = Popup(title=title, content=Label(text=message), size_hint=(None, None), size=(400, 200))
+        popup = Popup(title=title, content=Label(text=message, color=(1, 0, 0, 1)), size_hint=(None, None), size=(400, 200))
         popup.open()
 
     def on_send_button_press(self, instance):
@@ -172,8 +183,18 @@ class AuroraApp(App):
             App.get_running_app().stop()
         else:
             self.display_message(f"You: {prompt}", user=True)
+            self.show_loading_spinner()
             threading.Thread(target=self.send_message, args=(prompt,)).start()
             self.prompt_input.text = ""
+
+    def show_loading_spinner(self):
+        self.spinner = Spinner(text='Loading...', size_hint=(None, None), size=(50, 50), pos_hint={'center_x': 0.5, 'center_y': 0.5}, color=(0.2, 1, 0.2, 1))
+        self.root.add_widget(self.spinner)
+
+    def hide_loading_spinner(self):
+        if self.spinner:
+            self.root.remove_widget(self.spinner)
+            self.spinner = None
 
     def send_message(self, prompt):
         try:
@@ -184,9 +205,11 @@ class AuroraApp(App):
         except Exception as e:
             Clock.schedule_once(lambda dt: self.display_message(f"Error processing prompt: {e}", user=False), 0)
             Clock.schedule_once(lambda dt: self.update_status("Error"), 0)
+        finally:
+            Clock.schedule_once(lambda dt: self.hide_loading_spinner(), 0)
 
     def display_message(self, message, user=True):
-        background_color = get_color_from_hex("#1e1e1e") if user else get_color_from_hex("#2e7d32")
+        background_color = get_color_from_hex("#000000") if user else get_color_from_hex("#008000")  # Black for user, green for Aurora
         bubble = BubbleLabel(text=message, background_color=background_color)
         self.chat_content.add_widget(bubble)
         self.chat_display.scroll_y = 0
@@ -197,14 +220,13 @@ class AuroraApp(App):
     def update_status(self, message, animation=False):
         self.status_label.text = message
         if animation:
-            anim = Animation(color=(1, 1, 1, 1), duration=0.5) + Animation(color=(0.5, 0.5, 0.5, 1), duration=0.5)
+            anim = Animation(color=(0.2, 1, 0.2, 1), duration=0.5) + Animation(color=(0.2, 1, 0.2, 1), duration=0.5)
             anim.repeat = True
             anim.start(self.status_label)
         else:
-            self.status_label.color = (0.5, 0.5, 0.5, 1)
+            self.status_label.color = (0.2, 1, 0.2, 1)
 
     def on_request_close(self, *args):
-        self.brain.stop_all()
         App.get_running_app().stop()
         return True
 
