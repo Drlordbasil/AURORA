@@ -137,21 +137,21 @@ def choose_API_provider():
         client (object): The API client instance.
         model (str): The model name.
     """
-    llm = input("Choose an API provider (OpenAI, ollama, or Groq): (Defaults to Groq)  ").strip() or "Groq"
+    llm = "OpenAI" # Change this to the desired API provider: "OpenAI", "ollama", or "Groq"
     
     if llm == "OpenAI":
         api_key = os.environ.get("OPENAI_API_KEY") or input("Enter your OpenAI API key: ").strip()
-        model = input("Enter the model you would like to use:(default model selected if you hit Enter on keyboard.) ").strip() or "gpt-4"
+        model = "gpt-4o"
         client = OpenAI(api_key=api_key)
         return client, model
 
     elif llm == "ollama":
-        model = input("Enter the model you would like to use:(default model selected if you hit Enter on keyboard.) ").strip() or "llama3:instruct"
+        model = "llama3:instruct"
         return ollama, model
 
     elif llm == "Groq":
         api_key = os.environ.get("GROQ_API_KEY") or input("Enter your Groq API key: ").strip()
-        model = input("Enter the model you would like to use:(default model selected if you hit Enter on keyboard.) ").strip() or "llama3-70b-8192"
+        model = "llama3-70b-8192"
         client = Groq(api_key=api_key)
         return client, model
 
@@ -589,25 +589,33 @@ class LLM_API_Calls:
             print(f"Error in chat: {e}")
             return None
 
-# Example usage: A chatbot loop
-llm_api = LLM_API_Calls()
+# # Example usage: A chatbot loop
+# llm_api = LLM_API_Calls()
 
-def chat_loop():
-    print("Welcome to the chatbot. Type 'exit' to end the chat.")
-    system_prompt = "You are a multi-use function calling LLM"
+# def chat_loop():
+#     print("Welcome to the chatbot. Type 'exit' to end the chat.")
+#     system_prompt = "You are a multi-use function calling LLM"
     
-    while True:
-        prompt = input("You: ")
-        if prompt.lower() == 'exit':
-            print("Goodbye!")
-            break
+#     while True:
+#         try:
+#             prompt = input("You: ")
+#             if prompt.lower() == 'exit':
+#                 print("Goodbye!")
+#                 break
         
-        response = llm_api.chat(system_prompt=system_prompt, prompt=prompt)
+#             response = llm_api.chat(system_prompt=system_prompt, prompt=prompt)
         
-        if response:
-            print("assistant:", response)
-        else:
-            print("Failed to generate a response.")
+#             if response:
+#                 print("assistant:", response)
+#                 prompt = response # Using the response as the next prompt, if applicable
+#             else:
+#                 print("Failed to generate a response.")
 
-# Start the chatbot loop
-chat_loop()
+#         except KeyboardInterrupt:
+#             print("Goodbye!")
+#             break
+#         except Exception as e:
+#             print(f"An error occurred: {e}")
+#             break
+# # Start the chatbot loop
+# chat_loop()
