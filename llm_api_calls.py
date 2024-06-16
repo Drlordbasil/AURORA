@@ -65,7 +65,7 @@ collection = chromadb_client.create_collection(name="aurora_test_phase")
 # display current time
 def time_now():
     return time.strftime("%H:%M:%S")
-time = time_now()
+time_now = time_now()
 print(time)
 tools = [
             {
@@ -279,7 +279,7 @@ class LLM_API_Calls:
 
         try:
             driver.get(url)
-            time.sleep(2)
+            
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             paragraphs = soup.find_all('p')
             text = ' '.join([p.get_text() for p in paragraphs])
@@ -319,7 +319,7 @@ class LLM_API_Calls:
         driver = webdriver.Chrome(service=service, options=options)
 
         try:
-            driver.get("https://www.google.com")
+            driver.get("https://www.bing.com")
             search_box = driver.find_element(By.NAME, "q")
             search_box.send_keys(query)
             search_box.send_keys(Keys.RETURN)
@@ -651,3 +651,7 @@ class LLM_API_Calls:
             print(f"Error in chat: {e}")
             return None
 
+# test web research
+api = LLM_API_Calls()
+results = api.web_research("Latest AI trends")
+print(results)
