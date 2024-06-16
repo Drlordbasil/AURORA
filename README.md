@@ -1,12 +1,10 @@
-STABLE: Yes
-ONLY HAS BEEN RAN LOCALLY ON WINDOWS:
-AMD Ryzen 7 5800H with Radeon Graphics
-NOTE: I only use local modals on ollama and groq because its free. 
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/d3c8aedd-dd4b-4167-8d6d-f1a3c71e7f54)
+
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 
 AURORA (Artificial Unified Responsive Optimized Reasoning Agent) is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different types of cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses to user prompts.
-![image](https://github.com/Drlordbasil/AURORA/assets/126736516/22d9ea6e-11e4-483a-9d50-6d61180c1031)
+
 
 ## Features
 
