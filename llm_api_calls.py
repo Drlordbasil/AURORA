@@ -66,7 +66,7 @@ collection = chromadb_client.create_collection(name="aurora_test_phase")
 def time_now():
     return time.strftime("%H:%M:%S")
 time_now = time_now()
-print(time)
+print(time_now)
 tools = [
             {
                 "type": "function",
@@ -319,7 +319,7 @@ class LLM_API_Calls:
         driver = webdriver.Chrome(service=service, options=options)
 
         try:
-            driver.get("https://www.bing.com")
+            driver.get("https://www.google.com")
             search_box = driver.find_element(By.NAME, "q")
             search_box.send_keys(query)
             search_box.send_keys(Keys.RETURN)
