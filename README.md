@@ -1,7 +1,8 @@
-![image](https://github.com/Drlordbasil/AURORA/assets/126736516/d3c8aedd-dd4b-4167-8d6d-f1a3c71e7f54)
+
 
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/dec07c25-3ef0-456b-b861-fc7460e6d9f7)
 
 AURORA (Artificial Unified Responsive Optimized Reasoning Agent) is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different types of cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses to user prompts.
 
