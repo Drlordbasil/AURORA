@@ -15,7 +15,7 @@ from kivy.core.window import Window
 from kivy.uix.image import Image
 from kivy.uix.dropdown import DropDown
 from kivy.uix.spinner import Spinner
-from brain import Brain
+from Brain_modules.brain import Brain
 
 class BubbleLabel(BoxLayout):
     def __init__(self, text, background_color, **kwargs):
