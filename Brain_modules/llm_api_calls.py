@@ -24,9 +24,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 import chromadb
 
 def test_python_code_on_windows_subprocess(script_raw):
-    """
-    Test Python code on Windows using the subprocess module.
-    """
     try:
         with open("temp_script.py", "w") as file:
             file.write(script_raw)
@@ -139,9 +136,6 @@ tools = [
 ]
 
 def choose_API_provider():
-    """
-    Prompts the user to choose an API provider and sets up the client and model accordingly.
-    """
     llm = "Groq"
     if llm == "OpenAI":
         api_key = os.environ.get("OPENAI_API_KEY") or input("Enter your OpenAI API key: ").strip()
@@ -160,9 +154,6 @@ def choose_API_provider():
         raise ValueError("Invalid API provider selected")
 
 class LLM_API_Calls:
-    """
-    Class to handle API calls to different LLM providers.
-    """
     def __init__(self):
         self.client = None
         self.model = None
@@ -175,11 +166,9 @@ class LLM_API_Calls:
             "extract_text_from_pdf": self.extract_text_from_pdf,
             "analyze_sentiment": self.analyze_sentiment,
         }
+        self.chat_history = []
 
     def run_local_command(self, command):
-        """
-        Execute a local command on the system.
-        """
         try:
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             output = result.stdout
@@ -194,9 +183,6 @@ class LLM_API_Calls:
             return json.dumps({"command": command, "error": error_message})
 
     def extract_text_from_url(self, url):
-        """
-        Extract text content from a webpage.
-        """
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
         service = ChromeService(ChromeDriverManager().install())
@@ -207,7 +193,7 @@ class LLM_API_Calls:
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             paragraphs = soup.find_all('p')
             text = ' '.join([p.get_text() for p in paragraphs])
-            prompt_for_summary = f"Summarize the content of the page.{text}"
+            prompt_for_summary = f"Summarize the content of the page.\n\n{text}"
             text = self.client.chat.completions.create(model=self.model, messages=[{"role": "user", "content": prompt_for_summary}]).choices[0].message.content
             return text
         except Exception as e:
@@ -216,9 +202,6 @@ class LLM_API_Calls:
             driver.quit()
 
     def web_research(self, query):
-        """
-        Perform a web research query.
-        """
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
         service = ChromeService(ChromeDriverManager().install())
@@ -283,9 +266,6 @@ class LLM_API_Calls:
             driver.quit()
 
     def extract_text_from_pdf(self, pdf_url):
-        """
-        Extract text content from a PDF file.
-        """
         try:
             response = requests.get(pdf_url)
             with open("temp.pdf", "wb") as file:
@@ -297,9 +277,6 @@ class LLM_API_Calls:
             return json.dumps({"pdf_url": pdf_url, "error": str(e)})
 
     def analyze_sentiment(self, text):
-        """
-        Analyze the sentiment of a given text.
-        """
         try:
             sentiment = TextBlob(text).sentiment
             return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}})
@@ -307,41 +284,45 @@ class LLM_API_Calls:
             return json.dumps({"text": text, "error": str(e)})
 
     def setup_client(self):
-        """
-        Sets up the client and model by prompting the user to choose an API provider.
-        """
         try:
             self.client, self.model = choose_API_provider()
         except Exception as e:
             print(f"Error setting up client: {e}")
 
     def chat(self, system_prompt, prompt):
-        """
-        Sends a chat prompt to the selected API provider and returns the response.
-        """
-        try:
-            if isinstance(self.client, OpenAI):
-                messages = [
-                    {"role": "user", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ]
+        def handle_rate_limits(headers):
+            retry_after = headers.get('retry-after')
+            if retry_after:
+                print(f"Rate limit reached. Retrying after {retry_after} seconds...")
+                time.sleep(float(retry_after))
+            else:
+                print("Rate limit reached. Retrying after a default interval...")
+                time.sleep(10)
+
+        self.chat_history.append({"role": "user", "content": prompt})
+
+        while True:
+            try:
+                messages = [{"role": "system", "content": system_prompt}] + self.chat_history
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     tools=tools,
                     tool_choice="auto",
+                    max_tokens=4096
                 )
                 response_message = response.choices[0].message
                 tool_calls = response_message.tool_calls
+                self.chat_history.append(response_message)
+
                 if tool_calls:
                     available_functions = self.available_functions
-                    messages.append(response_message)
                     for tool_call in tool_calls:
                         function_name = tool_call.function.name
                         function_to_call = available_functions[function_name]
                         function_args = json.loads(tool_call.function.arguments)
                         function_response = function_to_call(**function_args)
-                        messages.append(
+                        self.chat_history.append(
                             {
                                 "tool_call_id": tool_call.id,
                                 "role": "tool",
@@ -351,108 +332,31 @@ class LLM_API_Calls:
                         )
                     second_response = self.client.chat.completions.create(
                         model=self.model,
-                        messages=messages,
+                        messages=self.chat_history
                     )
                     second_response = second_response.choices[0].message.content
+                    self.chat_history.append({"role": "assistant", "content": second_response})
+
                     third_response = self.client.chat.completions.create(
                         model=self.model,
-                        messages=[
+                        messages=self.chat_history + [
                             {"role": "system", "content": system_prompt},
-                            {"role": "assistant", "content": f"I need to fact check the following information:[my_last_response] {second_response}[/my_last_response] with another function call, please wait a moment."},
+                            {"role": "assistant", "content": f"I need to fact check the following information:\n[my_last_response] {second_response} [/my_last_response]\nwith another function call, please wait a moment."},
                             {"role": "user", "content": "Sure, take your time."}
                         ]
                     )
-                    return third_response.choices[0].message.content
-            elif self.client == ollama:
-                model = OllamaFunctions(model=self.model, format="json")
-                model = model.bind_tools(
-                    tools=[
-                        {
-                            "name": "get_current_weather",
-                            "description": "Get the current weather in a given location",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"},
-                                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
-                                },
-                                "required": ["location"],
-                            },
-                        }
-                    ],
-                    function_call={"name": "get_current_weather"},
-                )
-                input_data = {"location": prompt, "unit": "fahrenheit"}
-                function_output = model.invoke(json.dumps(input_data))
-                summary_prompt = f"""
-                Please provide a summary of the usage of this code, including:
-                - The purpose of the get_current_weather function
-                - The input data provided to the get_current_weather function: {input_data}
-                - The output returned by the get_current_weather function: {function_output.content}
-                - the original prompt: {prompt}
-                """
-                llm = ollama.chat(model=self.model, messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": summary_prompt}
-                ])
-                summary_output = llm["message"]["content"]
-                return summary_output
-            elif isinstance(self.client, Groq):
-                try:
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ]
-                    response = self.client.chat.completions.create(
-                        model=self.model,
-                        messages=messages,
-                        tools=tools,
-                        tool_choice="auto",
-                        max_tokens=4096
-                    )
-                    response_message = response.choices[0].message
-                    tool_calls = response_message.tool_calls
-                    if tool_calls:
-                        available_functions = self.available_functions
-                        messages.append(response_message)
-                        for tool_call in tool_calls:
-                            function_name = tool_call.function.name
-                            function_to_call = available_functions[function_name]
-                            function_args = json.loads(tool_call.function.arguments)
-                            function_response = function_to_call(**function_args)
-                            messages.append(
-                                {
-                                    "tool_call_id": tool_call.id,
-                                    "role": "tool",
-                                    "name": function_name,
-                                    "content": function_response,
-                                }
-                            )
-                        second_response = self.client.chat.completions.create(
-                            model=self.model,
-                            messages=messages
-                        )
-                        second_response = second_response.choices[0].message.content
-                        third_response = self.client.chat.completions.create(
-                            model=self.model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "assistant", "content": f"I need to fact check the following information:[my_last_response] {second_response}[/my_last_response] with another function call, please wait a moment."},
-                                {"role": "user", "content": "Sure, take your time."}
-                            ]
-                        )
-                        return third_response.choices[0].message.content
-                    else:
-                        return response_message.content
-                except Exception as e:
-                    print(f"Error in Groq tool usage: {e}")
-                    return None
-        except APIConnectionError as e:
-            print(f"API connection error: {e}")
-            return None
-        except APIStatusError as e:
-            print(f"API status error: {e}")
-            return None
-        except Exception as e:
-            print(f"Error in chat: {e}")
-            return None
+                    third_response_content = third_response.choices[0].message.content
+                    self.chat_history.append({"role": "assistant", "content": third_response_content})
+                    return third_response_content
+                else:
+                    return response_message.content
+            except APIConnectionError as e:
+                print(f"API connection error: {e}. Retrying...")
+                time.sleep(1)
+            except APIStatusError as e:
+                headers = e.response.headers
+                handle_rate_limits(headers)
+                print(f"API status error: {e}. Retrying...")
+            except Exception as e:
+                print(f"Error in chat: {e}. Retrying...")
+                time.sleep(1)
