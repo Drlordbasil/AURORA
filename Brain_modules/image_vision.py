@@ -18,7 +18,6 @@ class ImageVision:
     def save_image(self, image, image_path):
         try:
             if image.mode == "RGBA":
-                # Convert RGBA image to RGB mode
                 image = image.convert("RGB")
             image.save(image_path)
         except IOError as e:
@@ -42,7 +41,7 @@ class ImageVision:
             )
 
             image_description = res['message']['content']
-            os.remove(image_path)  # Remove the temporary image file
+            os.remove(image_path)
 
             return image_description
         except Exception as e:
