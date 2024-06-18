@@ -1,4 +1,4 @@
-
+# readme currently outdated and being updated soon!
 
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
