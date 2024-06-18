@@ -27,10 +27,29 @@ class Brain:
         self.function_calling = FunctionCalling(status_update_callback)
         self.status_update_callback = status_update_callback
         self.lobes = {
-            "frontal": "You are the frontal lobe of AURORA, responsible for logical analysis, planning, and problem-solving. Focus on providing coherent, well-reasoned responses.",
-            "parietal": "You are the parietal lobe of AURORA, responsible for processing sensory information and providing educational insights. Focus on understanding spatial orientation and guiding AURORA accordingly.",
-            "temporal": "You are the temporal lobe of AURORA, responsible for social context and language understanding. Focus on processing auditory information and considering social aspects.",
-            "occipital": "You are the occipital lobe of AURORA, responsible for visual processing. Focus on providing vivid and clear descriptions based on visual information."
+            "frontal": f"""
+            You are the frontal lobe of AURORA, responsible for logical analysis, 
+            planning, and problem-solving. Focus on providing coherent,
+              well-reasoned responses.
+            """,
+            "parietal": f"""
+            You are the parietal lobe of AURORA,
+              responsible for processing sensory information and providing educational insights.
+                Focus on understanding spatial orientation and guiding AURORA accordingly.
+            """,
+            "temporal": f"""
+
+            You are the temporal lobe of AURORA,
+              responsible for social context and language understanding.
+                Focus on processing auditory information and considering social aspects.
+                you will be on the alignment team of AURORA, responsible for ensuring that the responses are aligned with the user's query.
+            """,
+            "occipital": f"""
+            You are the occipital lobe of AURORA, responsible for visual processing.
+             focus on providing visual insights and understanding the user's perspective in spacial minds eye.
+
+            """
+
         }
         self.responses = Queue()
         self.threads = []
@@ -84,7 +103,7 @@ class Brain:
                 aggregated_responses[lobe_name] = response
             self._update_status("Responses aggregated.")
             add_to_memory(json.dumps(aggregated_responses), self.embeddings_model, self.collection, self.collection_size)
-            self.chat_history.append({"role": "assistant", "content": f"Aggregated responses: {aggregated_responses}"})
+            self.chat_history.append({"role": "assistant", "content": f"Aggregated responses from lobes and thinking processes for AURORA: {aggregated_responses}"})
             self._update_status("Responses processed.")
             return aggregated_responses
         except Exception as e:
@@ -132,43 +151,20 @@ class Brain:
             self._update_status("Final response received.")
             self.chat_history.append({"role": "assistant", "content": final_response})
 
-            return self.simplify_response(final_response)
+            return final_response
         except Exception as e:
             self._update_status(f"Error in final_agent: {e}")
             return f"Error: {e}"
 
-    def simplify_response(self, final_response):
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a concise assistant. Your goal is to simplify responses without losing the main message.",
-            },
-            {
-                "role": "assistant",
-                "content": self.chat_history[-1]["content"],
-            },
-            {
-                "role": "user",
-                "content": f"Please simplify the following response: {final_response} and only return the response, no context, just the response as if you are sending it to the intended user without markdowns, as everything you send is sent as a response, you should NOT include 'this is a simplified response: ' or quotes or markdowns. Use emojis, be friendly and happy and extend on the original response to the user as Aurora herself.",
-            }
-        ]
-        
-        try:
-            chat_completion = self.client.chat.completions.create(
-                messages=messages,
-                model="llama3-70b-8192",
-            )
-            return chat_completion.choices[0].message.content.strip()
-        except Exception as e:
-            return final_response  # Fallback to original response if there's an error
+
 
     def aurora_run_conversation(self, user_prompt):
         self.chat_history.append({"role": "user", "content": user_prompt})
         response = self.api_calls.chat(
-            "You are AURORA's function-calling lobe, responsible for handling tool-specific tasks.",
+            "You are AURORA's function-calling lobe, responsible for handling tool-specific tasks. this means you APART of aurora, you must tell Aurora this and that you are a part of the team. you are responsible for handling tool-specific tasks. you must provide a direct and relevant response to the user's query based on the combined insights from your lobes. Do not include markdowns, reply as if you are conversing with a human directly, which is the human user.",
             user_prompt
         )
-        self.chat_history.append({"role": "assistant", "content": response})
+        self.chat_history.append({"role": "assistant", "content": f"my tool calls agent as AURORA:{response}"})
         return response
 
     def central_processing_agent(self, prompt):
@@ -191,9 +187,9 @@ class Brain:
             time.sleep(3)
             final_thought = self.final_agent(prompt, analyzed_responses)
             self._update_status("Final response generated.")
-            if self.tts_enabled:
-                summarized_for_tts = self.final_agent(f"make this easy for TTS and remove anything that isn't Natural language: {final_thought}", analyzed_responses)
-                text_to_speech(summarized_for_tts)
+            # if self.tts_enabled:
+            #     summarized_for_tts = self.final_agent(f"make this easy for TTS and remove anything that isn't Natural language: {final_thought}", analyzed_responses)
+            #     text_to_speech(summarized_for_tts)
             return final_thought
         except Exception as e:
             self._update_status(f"Error in central_processing_agent: {e}")
