@@ -3,7 +3,7 @@
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 ![image](https://github.com/Drlordbasil/AURORA/assets/126736516/dec07c25-3ef0-456b-b861-fc7460e6d9f7)
-Here's a more direct README that doesn't talk down:
+
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 
