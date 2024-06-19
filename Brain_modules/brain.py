@@ -13,7 +13,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import PCA
 from textblob import TextBlob
 from nltk import word_tokenize, pos_tag
-from utilities import setup_logging, setup_embedding_collection
+from utilities import setup_embedding_collection
 from Brain_modules.final_agent_persona import FinalAgentPersona
 from kivy.clock import Clock
 from Brain_modules.llm_api_calls import LLM_API_Calls, tools
@@ -54,7 +54,7 @@ class Brain:
         try:
             if os.path.exists(model_name):
                 model = load_model(model_name)
-                print(f"""Loaded model {model_name} at {time.strftime('%Y-%m-%d %H:%M:%S')}""")
+                print(f"Loaded model {model_name} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             else:
                 model = Sequential([
                     Input(shape=(1,)),
@@ -62,12 +62,16 @@ class Brain:
                     Dense(32, activation='relu'),
                     Dense(1, activation='sigmoid')
                 ])
-                print(f"""Created new model {model_name} at {time.strftime('%Y-%m-%d %H:%M:%S')}""")
-            model.compile(optimizer=Adam(lr=0.001), loss='binary_crossentropy', metrics=['accuracy'])
+                print(f"Created new model {model_name} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+            # Update to TensorFlow 2.x format for Adam optimizer
+            optimizer = Adam(learning_rate=0.001)
+            model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
             return model
         except Exception as e:
-            print(f"""Error creating/loading model {model_name}: {str(e)} at {time.strftime('%Y-%m-%d %H:%M:%S')}""")
+            print(f"Error creating/loading model {model_name}: {str(e)} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             return None
+
 
     def toggle_tts(self):
         self.tts_enabled = not self.tts_enabled
