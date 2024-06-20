@@ -3,8 +3,13 @@ import playsound
 import os
 
 def text_to_speech(text):
-    DEEPGRAM_API_KEY = "" ## add your api key here for now, i'll be moving it to to env var or just set in GUI eventually.
-    FILENAME = "audio.mp3"
+    if os.environ.get("DEEPGRAM_API_KEY") is None:
+        print("Please set the DEEPGRAM_API_KEY environment variable.")
+        return
+    else:
+        DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
+
+    FILENAME = "response.mp3"
 
     try:
         deepgram = DeepgramClient(DEEPGRAM_API_KEY)

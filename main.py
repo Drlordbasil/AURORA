@@ -16,6 +16,9 @@ from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner
 from Brain_modules.brain import Brain
 from Brain_modules.llm_api_calls import LLM_API_Calls
+from kivy.uix.dropdown import DropDown
+from Brain_modules.listen_lobe import AuroraRecorder
+
 class BubbleLabel(BoxLayout):
     def __init__(self, text, background_color, **kwargs):
         super().__init__(**kwargs)
@@ -80,18 +83,24 @@ class AuroraApp(App):
         
         self.buttons_layout = BoxLayout(size_hint=(1, 0.1), spacing=10)
         self.send_button = Button(
-            text="Send", size_hint=(0.5, 1),
+            text="Send", size_hint=(0.3, 1),
             background_color=(0.2, 0.6, 0.86, 1), font_size=20, color=(1, 1, 1, 1)
         )
         self.send_button.bind(on_press=self.on_send_button_press)
         self.clear_button = Button(
-            text="Clear Chat", size_hint=(0.5, 1),
+            text="Clear Chat", size_hint=(0.3, 1),
             background_color=(0.86, 0.36, 0.36, 1), font_size=20, color=(1, 1, 1, 1)
         )
         self.clear_button.bind(on_press=self.clear_chat)
+        self.record_button = Button(
+            text="Record", size_hint=(0.3, 1),
+            background_color=(0.36, 0.86, 0.36, 1), font_size=20, color=(1, 1, 1, 1)
+        )
+        self.record_button.bind(on_press=self.toggle_recording)
         
         self.buttons_layout.add_widget(self.send_button)
         self.buttons_layout.add_widget(self.clear_button)
+        self.buttons_layout.add_widget(self.record_button)
 
         left_layout.add_widget(self.chat_display)
         left_layout.add_widget(self.prompt_input)
@@ -101,7 +110,7 @@ class AuroraApp(App):
             text=(
                 "AURORA: Artificial Unified Responsive Optimized Reasoning Agent\n\nFeatures:\n"
                 "- Execute local commands\n- Perform web research\n- Analyze images\n"
-                "- Extract text from PDFs\n- Analyze sentiment\n\n"
+                "- Extract text from PDFs\n- Analyze sentiment\n- Voice recognition\n\n"
                 "Aurora assists you with a variety of tasks by using its advanced AI capabilities."
             ),
             size_hint=(1, 0.6), font_size="16sp", color=(0.2, 1, 0.2, 1),
@@ -123,6 +132,16 @@ class AuroraApp(App):
         self.body.add_widget(left_layout)
         self.body.add_widget(right_layout)
 
+        self.theme_spinner = Spinner(
+            text='Dark Theme',
+            values=('Dark Theme', 'Light Theme'),
+            size_hint=(None, None),
+            size=(150, 44),
+            pos_hint={'center_x': 0.9, 'center_y': 0.5}
+        )
+        self.theme_spinner.bind(text=self.on_theme_change)
+        self.header.add_widget(self.theme_spinner)
+
         self.root.add_widget(self.header)
         self.root.add_widget(self.body)
 
@@ -133,8 +152,32 @@ class AuroraApp(App):
 
         self.brain = Brain(api_key, self.update_status)
         self.llm_api_call = LLM_API_Calls(self.update_status)
+        self.recorder = AuroraRecorder(callback=self.on_transcription)
+        self.spinner = None
 
         return self.root
+
+    def on_theme_change(self, spinner, text):
+        if text == 'Dark Theme':
+            self.set_dark_theme()
+        else:
+            self.set_light_theme()
+
+    def set_dark_theme(self):
+        self.root.canvas.before.children[0].rgba = get_color_from_hex("#000000")
+        self.prompt_input.background_color = get_color_from_hex("#000000")
+        self.prompt_input.foreground_color = get_color_from_hex("#33ff33")
+        self.status_label.color = get_color_from_hex("#33ff33")
+        self.send_button.background_color = get_color_from_hex("#1E90FF")
+        self.clear_button.background_color = get_color_from_hex("#DC143C")
+
+    def set_light_theme(self):
+        self.root.canvas.before.children[0].rgba = get_color_from_hex("#FFFFFF")
+        self.prompt_input.background_color = get_color_from_hex("#FFFFFF")
+        self.prompt_input.foreground_color = get_color_from_hex("#000000")
+        self.status_label.color = get_color_from_hex("#008000")
+        self.send_button.background_color = get_color_from_hex("#4169E1")
+        self.clear_button.background_color = get_color_from_hex("#B22222")
 
     def show_help(self, instance):
         help_popup = Popup(
@@ -170,10 +213,11 @@ class AuroraApp(App):
             self.prompt_input.text = ""
 
     def show_loading_spinner(self):
-        self.spinner = Spinner(
-            text='Loading...', size_hint=(None, None), size=(50, 50),
-            pos_hint={'center_x': 0.5, 'center_y': 0.5}, color=(0.2, 1, 0.2, 1)
-        )
+        if not self.spinner:
+            self.spinner = Spinner(
+                text='Loading...', size_hint=(None, None), size=(50, 50),
+                pos_hint={'center_x': 0.5, 'center_y': 0.5}, color=(0.2, 1, 0.2, 1)
+            )
         self.root.add_widget(self.spinner)
 
     def hide_loading_spinner(self):
@@ -211,7 +255,23 @@ class AuroraApp(App):
         else:
             self.status_label.color = (0.2, 1, 0.2, 1)
 
+    def toggle_recording(self, instance):
+        if self.record_button.text == "Record":
+            self.recorder.start_recording()
+            self.record_button.text = "Stop Recording"
+            self.record_button.background_color = (0.86, 0.36, 0.36, 1)
+        else:
+            self.recorder.stop_recording()
+            self.record_button.text = "Record"
+            self.record_button.background_color = (0.36, 0.86, 0.36, 1)
+
+    def on_transcription(self, text):
+        Clock.schedule_once(lambda dt: self.display_message(f"You (voice): {text}", user=True), 0)
+        Clock.schedule_once(lambda dt: self.send_message(text), 0)
+
     def on_request_close(self, *args):
+        if hasattr(self, 'recorder'):
+            self.recorder.stop_recording()
         App.get_running_app().stop()
         return True
 

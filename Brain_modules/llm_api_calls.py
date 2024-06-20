@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import time
-from traceback import extract_tb
 from bs4 import BeautifulSoup
 from openai import OpenAI, APIConnectionError, APIStatusError
 from groq import Groq
@@ -23,6 +22,8 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import chromadb
 from kivy.clock import Clock
+from PyPDF2 import PdfFileReader
+from io import BytesIO
 
 def test_python_code_on_windows_subprocess(script_raw):
     try:
@@ -154,61 +155,21 @@ def choose_API_provider():
     else:
         raise ValueError("Invalid API provider selected")
 
-class LLM_API_Calls:
-    def __init__(self,status_update_callback):
-        self.client = None
-        self.model = None
-        self.setup_client()
-        self.image_vision = ImageVision()
-        self.available_functions = {
-            "run_local_command": self.run_local_command,
-            "web_research": self.web_research,
-            "analyze_image": self.image_vision.analyze_image,
-            "extract_text_from_pdf": self.extract_text_from_pdf,
-            "analyze_sentiment": self.analyze_sentiment,
-        }
-        self.chat_history = []
+class WebResearchTool:
+    def __init__(self, status_update_callback):
         self.status_update_callback = status_update_callback
-    def _update_status(self, message):
-        """
-        Update the status through the callback function.
 
-        Args:
-            message (str): The status message to be updated.
-        """
-        Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
-    def run_local_command(self, command):
-        self._update_status(f"Executing command: {command}")
-        try:
-            self._update_status(f"Executing command: {command}")
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)
-            self._update_status(f"Command executed successfully: {result.stdout}")
-            output = result.stdout
-            self._update_status(f"Command executed successfully: {output}")
-            error = result.stderr
-            self._update_status(f"Command executed successfully: {output}")
-            if error:
-                output = json.dumps({"message": f"Command executed with errors: {error}"})
-                self._update_status(f"Command executed with errors: {error}")
-            else:
-                output = json.dumps({"message": f"Command executed successfully: {output}"})
-                self._update_status(f"Command{command} executed successfully: {output}")
-            return json.dumps({"command": command, "output": output, "error": error})
-        
-        except Exception as e:
-            error_message = json.dumps({"message": f"Error executing command: {str(e)}"})
-            return json.dumps({"command": command, "error": error_message})
+    def _update_status(self, message):
+        """Update the status through the callback function."""
+        self.status_update_callback(message)
 
     def _initialize_webdriver(self):
         """Initialize and return a Chrome WebDriver with predefined options."""
         options = webdriver.ChromeOptions()
         self._update_status("Initializing Chrome WebDriver...")
         options.add_argument('--disable-gpu')
-        self._update_status("Initializing Chrome WebDriver...")
         service = ChromeService(ChromeDriverManager().install())
-        self._update_status("Initializing Chrome WebDriver...")
         driver = webdriver.Chrome(service=service, options=options)
-        self._update_status("Initializing Chrome WebDriver...")
         return driver
 
     def extract_text_from_url(self, url):
@@ -232,7 +193,7 @@ class LLM_API_Calls:
             return f"Error extracting text from {url}: {str(e)}"
         finally:
             driver.quit()
-            self._update_status(f"Driver quit successfully.")
+            self._update_status("Driver quit successfully.")
 
     def web_research(self, query):
         """Perform web research based on the given query and return aggregated content."""
@@ -253,8 +214,7 @@ class LLM_API_Calls:
                 for result in results:
                     title_element = result.select_one('.DKV0Md') if 'google' in engine else result.select_one('h2')
                     link_element = result.select_one('a')
-                    self._update_status(f"Extracting title and link...")
-                    if title_element and link_element:  
+                    if title_element and link_element:
                         title = title_element.get_text()
                         link = link_element.get('href')
                         self._update_status(f"Extracting content from {link}...")
@@ -305,14 +265,12 @@ class LLM_API_Calls:
         self._update_status(f"Extracting text from PDF: {pdf_url}")
         try:
             response = requests.get(pdf_url)
-            self._update_status(f"PDF downloaded successfully.")
-            with open("temp.pdf", "wb") as file:
-                file.write(response.content)
-                self._update_status(f"PDF saved successfully.")
-            text = extract_tb("temp.pdf")
-            self._update_status(f"Text extracted from PDF: {text}")
-            os.remove("temp.pdf")
-            self._update_status(f"Text extracted from PDF: {text}")
+            self._update_status("PDF downloaded successfully.")
+            pdf_reader = PdfFileReader(BytesIO(response.content))
+            text = ""
+            for page_num in range(pdf_reader.numPages):
+                text += pdf_reader.getPage(page_num).extract_text()
+            self._update_status(f"Text extracted from PDF: {text[:100]}...")  # Displaying only the first 100 characters
             return json.dumps({"pdf_url": pdf_url, "text": text})
         except Exception as e:
             self._update_status(f"Error extracting text from PDF: {str(e)}")
@@ -326,6 +284,47 @@ class LLM_API_Calls:
         except Exception as e:
             self._update_status(f"Error analyzing sentiment: {str(e)}")
             return json.dumps({"text": text, "error": str(e)})
+
+class LLM_API_Calls:
+    def __init__(self, status_update_callback):
+        self.client = None
+        self.model = None
+        self.setup_client()
+        self.image_vision = ImageVision()
+        self.web_research_tool = WebResearchTool(status_update_callback)
+        self.available_functions = {
+            "run_local_command": self.run_local_command,
+            "web_research": self.web_research_tool.web_research,
+            "analyze_image": self.image_vision.analyze_image,
+            "extract_text_from_pdf": self.web_research_tool.extract_text_from_pdf,
+            "analyze_sentiment": self.web_research_tool.analyze_sentiment,
+        }
+        self.chat_history = []
+        self.status_update_callback = status_update_callback
+
+    def _update_status(self, message):
+        """
+        Update the status through the callback function.
+
+        Args:
+            message (str): The status message to be updated.
+        """
+        Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
+
+    def run_local_command(self, command):
+        self._update_status(f"Executing command: {command}")
+        try:
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            output = result.stdout
+            error = result.stderr
+            if error:
+                output = json.dumps({"message": f"Command executed with errors: {error}"})
+            else:
+                output = json.dumps({"message": f"Command executed successfully: {output}"})
+            return json.dumps({"command": command, "output": output, "error": error})
+        except Exception as e:
+            error_message = json.dumps({"message": f"Error executing command: {str(e)}"})
+            return json.dumps({"command": command, "error": error_message})
 
     def setup_client(self):
         try:

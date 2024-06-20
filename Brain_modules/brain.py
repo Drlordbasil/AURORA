@@ -24,6 +24,15 @@ from sklearn.metrics import pairwise_distances
 from sklearn.preprocessing import normalize
 
 def create_lobe_model(input_shape):
+    """
+    Create a neural network model for a brain lobe.
+
+    Args:
+        input_shape (tuple): The shape of the input data.
+
+    Returns:
+        keras.models.Sequential: The neural network model for the brain lobe.
+    """
     model = Sequential([
         Input(shape=input_shape),
         Dense(128, activation='relu'),
@@ -36,6 +45,16 @@ def create_lobe_model(input_shape):
     return model
 
 def create_controller_model(input_shape, output_shape):
+    """
+    Create a neural network model for the brain controller.
+
+    Args:
+        input_shape (tuple): The shape of the input data.
+        output_shape (int): The shape of the output data.
+
+    Returns:
+        keras.models.Sequential: The neural network model for the brain controller.
+    """
     model = Sequential([
         Input(shape=input_shape),
         Dense(64, activation='relu'),
@@ -50,11 +69,10 @@ class Brain:
     """
     The Brain class represents the core processing unit of the AURORA chatbot.
     It utilizes neural networks to simulate different brain lobes for processing
-    various types of inputs and generating responses.
+    various types of inputs and generating responses. This class integrates with
+    the LLM_API_Calls class for handling external API interactions.
 
     Attributes:
-        api_key (str): The API key for accessing external LLM services.
-        status_update_callback (function): Callback function for status updates.
         tts_enabled (bool): Flag to enable/disable text-to-speech.
         embeddings_model (str): Model name for embeddings.
         collection (object): Embedding collection object.
@@ -70,6 +88,13 @@ class Brain:
     """
 
     def __init__(self, api_key, status_update_callback):
+        """
+        Initialize the Brain instance.
+
+        Args:
+            api_key (str): The API key for accessing external LLM services.
+            status_update_callback (function): Callback function for status updates.
+        """
         print(f"Initializing Brain with API key at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         self.tts_enabled = True
         self.embeddings_model = "mxbai-embed-large"
