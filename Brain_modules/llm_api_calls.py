@@ -22,7 +22,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import chromadb
-
+from kivy.clock import Clock
 def test_python_code_on_windows_subprocess(script_raw):
     try:
         with open("temp_script.py", "w") as file:
@@ -154,7 +154,7 @@ def choose_API_provider():
         raise ValueError("Invalid API provider selected")
 
 class LLM_API_Calls:
-    def __init__(self):
+    def __init__(self,status_update_callback):
         self.client = None
         self.model = None
         self.setup_client()
@@ -167,17 +167,33 @@ class LLM_API_Calls:
             "analyze_sentiment": self.analyze_sentiment,
         }
         self.chat_history = []
+        self.status_update_callback = status_update_callback
+    def _update_status(self, message):
+        """
+        Update the status through the callback function.
 
+        Args:
+            message (str): The status message to be updated.
+        """
+        Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
     def run_local_command(self, command):
+        self._update_status(f"Executing command: {command}")
         try:
+            self._update_status(f"Executing command: {command}")
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            self._update_status(f"Command executed successfully: {result.stdout}")
             output = result.stdout
+            self._update_status(f"Command executed successfully: {output}")
             error = result.stderr
+            self._update_status(f"Command executed successfully: {output}")
             if error:
                 output = json.dumps({"message": f"Command executed with errors: {error}"})
+                self._update_status(f"Command executed with errors: {error}")
             else:
                 output = json.dumps({"message": f"Command executed successfully: {output}"})
+                self._update_status(f"Command{command} executed successfully: {output}")
             return json.dumps({"command": command, "output": output, "error": error})
+        
         except Exception as e:
             error_message = json.dumps({"message": f"Error executing command: {str(e)}"})
             return json.dumps({"command": command, "error": error_message})
@@ -185,30 +201,39 @@ class LLM_API_Calls:
     def _initialize_webdriver(self):
         """Initialize and return a Chrome WebDriver with predefined options."""
         options = webdriver.ChromeOptions()
+        self._update_status("Initializing Chrome WebDriver...")
         options.add_argument('--disable-gpu')
+        self._update_status("Initializing Chrome WebDriver...")
         service = ChromeService(ChromeDriverManager().install())
+        self._update_status("Initializing Chrome WebDriver...")
         driver = webdriver.Chrome(service=service, options=options)
+        self._update_status("Initializing Chrome WebDriver...")
         return driver
 
     def extract_text_from_url(self, url):
         """Extract and return the main text content from a given URL."""
         driver = self._initialize_webdriver()
+        self._update_status(f"Extracting text from {url}...")
         try:
             driver.get(url)
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             paragraphs = soup.find_all('p')
             text = ' '.join([p.get_text() for p in paragraphs])
+            self._update_status(f"Text extracted from {url}: {text}")
+            
             return text
         except Exception as e:
+            self._update_status(f"Error extracting text from {url}: {str(e)}")
             return f"Error extracting text from {url}: {str(e)}"
         finally:
             driver.quit()
+            self._update_status(f"Driver quit successfully.")
 
     def web_research(self, query):
         """Perform web research based on the given query and return aggregated content."""
         search_engines = ["https://www.google.com", "https://www.bing.com"]
         search_results = []
-
+        self._update_status(f"Performing web research for: {query}")
         for engine in search_engines:
             driver = self._initialize_webdriver()
             try:
@@ -216,19 +241,20 @@ class LLM_API_Calls:
                 search_box = driver.find_element(By.NAME, "q")
                 search_box.send_keys(query)
                 search_box.send_keys(Keys.RETURN)
-
+                self._update_status(f"Searching for {query} using {engine}...")
                 soup = BeautifulSoup(driver.page_source, 'html.parser')
                 results = soup.select('.tF2Cxc')[:2] if 'google' in engine else soup.select('.b_algo')[:2]
-
+                self._update_status(f"Search results found: {len(results)}")
                 for result in results:
                     title_element = result.select_one('.DKV0Md') if 'google' in engine else result.select_one('h2')
                     link_element = result.select_one('a')
-
-                    if title_element and link_element:
+                    self._update_status(f"Extracting title and link...")
+                    if title_element and link_element:  
                         title = title_element.get_text()
                         link = link_element.get('href')
-
+                        self._update_status(f"Extracting content from {link}...")
                         main_content = self.extract_text_from_url(link)
+                        self._update_status(f"Content extracted from {link}: {main_content}")
                         search_results.append({
                             "title": title,
                             "link": link,
@@ -248,62 +274,82 @@ class LLM_API_Calls:
                                     "link": sub_url,
                                     "content": sub_content
                                 })
+                                self._update_status(f"Sublink content extracted from {sub_url}: {sub_content}")
             except Exception as e:
                 print(f"Error using {engine}: {e}")
             finally:
                 driver.quit()
 
         # Aggregate and filter the content
+        self._update_status(f"Aggregating content for {query}...")
         aggregated_content = []
+        self._update_status(f"Aggregating content for {query}...")
         for result in search_results:
             sentences = sent_tokenize(result['content'])
             filtered_sentences = [sentence for sentence in sentences if TextBlob(sentence).sentiment.subjectivity < 0.5]
             aggregated_content.extend(filtered_sentences)
-
+            self._update_status(f"Aggregated content from {result['link']}: {len(filtered_sentences)} sentences")
         final_content = ' '.join(aggregated_content)
         if len(final_content.split()) > 1500:
             final_content = ' '.join(final_content.split()[:1500])
-
+            self._update_status(f"Final content aggregated for {query}: {len(final_content.split())} words")
         return json.dumps({"query": query, "results": final_content}) if final_content else json.dumps({"query": query, "error": "No results found."})
 
     def extract_text_from_pdf(self, pdf_url):
+        self._update_status(f"Extracting text from PDF: {pdf_url}")
         try:
             response = requests.get(pdf_url)
+            self._update_status(f"PDF downloaded successfully.")
             with open("temp.pdf", "wb") as file:
                 file.write(response.content)
+                self._update_status(f"PDF saved successfully.")
             text = extract_tb("temp.pdf")
+            self._update_status(f"Text extracted from PDF: {text}")
             os.remove("temp.pdf")
+            self._update_status(f"Text extracted from PDF: {text}")
             return json.dumps({"pdf_url": pdf_url, "text": text})
         except Exception as e:
+            self._update_status(f"Error extracting text from PDF: {str(e)}")
             return json.dumps({"pdf_url": pdf_url, "error": str(e)})
 
     def analyze_sentiment(self, text):
         try:
             sentiment = TextBlob(text).sentiment
+            self._update_status(f"Sentiment analysis for: {text}")
             return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}})
         except Exception as e:
+            self._update_status(f"Error analyzing sentiment: {str(e)}")
             return json.dumps({"text": text, "error": str(e)})
 
     def setup_client(self):
         try:
             self.client, self.model = choose_API_provider()
+            self._update_status("Client setup successful.")
         except Exception as e:
             print(f"Error setting up client: {e}")
+            self._update_status(f"Error setting up client: {e}")
 
     def chat(self, system_prompt, prompt):
         def handle_rate_limits(headers):
             retry_after = headers.get('retry-after')
+            self._update_status(f"Rate limit reached. Retrying after {retry_after} seconds...")
             if retry_after:
                 print(f"Rate limit reached. Retrying after {retry_after} seconds...")
                 time.sleep(float(retry_after))
             else:
                 print("Rate limit reached. Retrying after a default interval...")
-                time.sleep(10)
+                self._update_status("Rate limit reached. Retrying after a default interval...")
+                time.sleep(30)
 
         self.chat_history.append({"role": "user", "content": prompt})
-
+        self._update_status("Starting chat loop 1/3 of the chat process.")
         while True:
             try:
+                system_prompt = f"""
+                {system_prompt}
+                current time:{time_now}
+
+                """
                 messages = [{"role": "system", "content": system_prompt}] + self.chat_history
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -313,9 +359,10 @@ class LLM_API_Calls:
                     max_tokens=4096
                 )
                 response_message = response.choices[0].message
+                self._update_status("Chat loop 1/4 completed.")
                 tool_calls = response_message.tool_calls
                 self.chat_history.append(response_message)
-
+                self._update_status("Chat loop 2/4 completed.")
                 if tool_calls:
                     available_functions = self.available_functions
                     for tool_call in tool_calls:
@@ -336,6 +383,7 @@ class LLM_API_Calls:
                         messages=self.chat_history
                     )
                     second_response = second_response.choices[0].message.content
+                    self._update_status("Chat loop 3/4 completed.")
                     self.chat_history.append({"role": "assistant", "content": second_response})
 
                     third_response = self.client.chat.completions.create(
@@ -347,6 +395,7 @@ class LLM_API_Calls:
                         ]
                     )
                     third_response_content = third_response.choices[0].message.content
+                    self._update_status("Chat loop 4/4 completed.")
                     self.chat_history.append({"role": "assistant", "content": third_response_content})
                     return third_response_content
                 else:
@@ -361,4 +410,3 @@ class LLM_API_Calls:
             except Exception as e:
                 print(f"Error in chat: {e}. Retrying...")
                 time.sleep(1)
-
