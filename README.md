@@ -1,3 +1,5 @@
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/1a4945d3-fcbe-4fa9-8c19-b5396ecf8a45)
+
 ![image](https://github.com/Drlordbasil/AURORA/assets/126736516/a8dff8fb-bfde-4233-bf32-de7c3220b8ff)
 
 
