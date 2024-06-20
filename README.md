@@ -1,4 +1,4 @@
-![Uploading image.png…]()
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/a8dff8fb-bfde-4233-bf32-de7c3220b8ff)
 
 
 
