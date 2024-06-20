@@ -23,6 +23,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import chromadb
 from kivy.clock import Clock
+
 def test_python_code_on_windows_subprocess(script_raw):
     try:
         with open("temp_script.py", "w") as file:
@@ -217,10 +218,14 @@ class LLM_API_Calls:
         try:
             driver.get(url)
             soup = BeautifulSoup(driver.page_source, 'html.parser')
+            # Remove unwanted elements (ads, sidebars, etc.)
+            for element in soup(['script', 'style', 'header', 'footer', 'nav', 'aside', 'form', 'iframe', 'noscript', 'svg']):
+                element.extract()
             paragraphs = soup.find_all('p')
             text = ' '.join([p.get_text() for p in paragraphs])
-            self._update_status(f"Text extracted from {url}: {text}")
-            
+            if len(text) < 50:  # Arbitrary threshold for minimal content
+                raise ValueError("Insufficient content")
+            self._update_status(f"Text extracted from {url}: {text[:100]}...")  # Displaying only the first 100 characters
             return text
         except Exception as e:
             self._update_status(f"Error extracting text from {url}: {str(e)}")
@@ -254,27 +259,29 @@ class LLM_API_Calls:
                         link = link_element.get('href')
                         self._update_status(f"Extracting content from {link}...")
                         main_content = self.extract_text_from_url(link)
-                        self._update_status(f"Content extracted from {link}: {main_content}")
-                        search_results.append({
-                            "title": title,
-                            "link": link,
-                            "content": main_content
-                        })
+                        self._update_status(f"Content extracted from {link}: {main_content[:100]}...")  # Displaying only the first 100 characters
+                        if "Error extracting text" not in main_content:  # Check if the content extraction was successful
+                            search_results.append({
+                                "title": title,
+                                "link": link,
+                                "content": main_content
+                            })
 
-                        # Fetch additional sub-links for more information
-                        driver.get(link)
-                        sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
-                        sub_links = sub_soup.select('a')[:1]
-                        for sub_link in sub_links:
-                            sub_url = sub_link.get('href')
-                            if sub_url and sub_url.startswith('http'):
-                                sub_content = self.extract_text_from_url(sub_url)
-                                search_results.append({
-                                    "title": f"Sublink from {title}",
-                                    "link": sub_url,
-                                    "content": sub_content
-                                })
-                                self._update_status(f"Sublink content extracted from {sub_url}: {sub_content}")
+                            # Fetch additional sub-links for more information
+                            driver.get(link)
+                            sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
+                            sub_links = sub_soup.select('a')[:1]
+                            for sub_link in sub_links:
+                                sub_url = sub_link.get('href')
+                                if sub_url and sub_url.startswith('http'):
+                                    sub_content = self.extract_text_from_url(sub_url)
+                                    if "Error extracting text" not in sub_content:  # Check if the content extraction was successful
+                                        search_results.append({
+                                            "title": f"Sublink from {title}",
+                                            "link": sub_url,
+                                            "content": sub_content
+                                        })
+                                        self._update_status(f"Sublink content extracted from {sub_url}: {sub_content[:100]}...")
             except Exception as e:
                 print(f"Error using {engine}: {e}")
             finally:
@@ -283,7 +290,6 @@ class LLM_API_Calls:
         # Aggregate and filter the content
         self._update_status(f"Aggregating content for {query}...")
         aggregated_content = []
-        self._update_status(f"Aggregating content for {query}...")
         for result in search_results:
             sentences = sent_tokenize(result['content'])
             filtered_sentences = [sentence for sentence in sentences if TextBlob(sentence).sentiment.subjectivity < 0.5]
@@ -390,8 +396,15 @@ class LLM_API_Calls:
                         model=self.model,
                         messages=self.chat_history + [
                             {"role": "system", "content": system_prompt},
-                            {"role": "assistant", "content": f"I need to fact check the following information:\n[my_last_response] {second_response} [/my_last_response]\nwith another function call, please wait a moment."},
-                            {"role": "user", "content": "Sure, take your time."}
+                            {"role": "assistant", "content": f"I need to fact check the following information using my tools in my next response here is my last:\n[my_last_response] {second_response} [/my_last_response]\nwith another function call, please wait a moment."},
+                            {"role": "user", "content": f"""
+                            Use your tools and function calling that you have which are:
+                            {tools}
+                            Use the proper tool call to help with this user prompt:
+                        !start of user prompt.!
+                            {prompt}
+                        !/end of user prompt.!
+                        """}
                         ]
                     )
                     third_response_content = third_response.choices[0].message.content
