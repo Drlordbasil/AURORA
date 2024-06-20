@@ -76,7 +76,7 @@ class Brain:
         self.collection, self.collection_size = setup_embedding_collection()
         self.status_update_callback = status_update_callback
         self.image_vision = ImageVision()
-        self.api_calls = LLM_API_Calls()
+        self.api_calls = LLM_API_Calls(self.status_update_callback)
         self.client = self.api_calls.client
         self.lobes = self._initialize_lobes()
         self.controller_model = create_controller_model(input_shape=(100,), output_shape=len(self.lobes))  # Example input shape
