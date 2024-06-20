@@ -88,15 +88,15 @@ tools = [
             "name": "analyze_image",
             "description": "Analyze an image from a provided URL and generate a description of the image's content.",
             "parameters": {
-                "type": "object",
-                "properties": {
-                    "image_url": {
-                        "type": "string",
-                        "description": "The URL of the image to analyze.",
-                    }
-                },
-                "required": ["image_url"],
-            },
+                        "type": "object",
+                        "properties": {
+                            "image_url": {
+                                "type": "string",
+                                "description": "The URL of the image to analyze.",
+                            }
+                        },
+                        "required": ["image_url"],
+                    },
         },
     },
     {
@@ -206,64 +206,65 @@ class LLM_API_Calls:
 
     def web_research(self, query):
         """Perform web research based on the given query and return aggregated content."""
-        driver = self._initialize_webdriver()
-        try:
-            driver.get("https://www.google.com")
-            search_box = driver.find_element(By.NAME, "q")
-            search_box.send_keys(query)
-            search_box.send_keys(Keys.RETURN)
+        search_engines = ["https://www.google.com", "https://www.bing.com"]
+        search_results = []
 
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-            search_results = []
+        for engine in search_engines:
+            driver = self._initialize_webdriver()
+            try:
+                driver.get(engine)
+                search_box = driver.find_element(By.NAME, "q")
+                search_box.send_keys(query)
+                search_box.send_keys(Keys.RETURN)
 
-            results = soup.select('.tF2Cxc')[:1]
-            for result in results:
-                title_element = result.select_one('.DKV0Md')
-                link_element = result.select_one('a')
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                results = soup.select('.tF2Cxc')[:2] if 'google' in engine else soup.select('.b_algo')[:2]
 
-                if title_element and link_element:
-                    title = title_element.get_text()
-                    link = link_element.get('href')
+                for result in results:
+                    title_element = result.select_one('.DKV0Md') if 'google' in engine else result.select_one('h2')
+                    link_element = result.select_one('a')
 
-                    main_content = self.extract_text_from_url(link)
-                    search_results.append({
-                        "title": title,
-                        "link": link,
-                        "content": main_content
-                    })
+                    if title_element and link_element:
+                        title = title_element.get_text()
+                        link = link_element.get('href')
 
-                    driver.get(link)
-                    sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    sub_links = sub_soup.select('a')[:1]
-                    for sub_link in sub_links:
-                        sub_url = sub_link.get('href')
-                        if sub_url and sub_url.startswith('http'):
-                            sub_content = self.extract_text_from_url(sub_url)
-                            search_results.append({
-                                "title": f"Sublink from {title}",
-                                "link": sub_url,
-                                "content": sub_content
-                            })
+                        main_content = self.extract_text_from_url(link)
+                        search_results.append({
+                            "title": title,
+                            "link": link,
+                            "content": main_content
+                        })
 
-            aggregated_content = []
-            for result in search_results:
-                sentences = sent_tokenize(result['content'])
-                filtered_sentences = []
-                for sentence in sentences:
-                    sentiment = TextBlob(sentence).sentiment
-                    if sentiment.subjectivity < 0.5:
-                        filtered_sentences.append(sentence)
-                aggregated_content.extend(filtered_sentences)
+                        # Fetch additional sub-links for more information
+                        driver.get(link)
+                        sub_soup = BeautifulSoup(driver.page_source, 'html.parser')
+                        sub_links = sub_soup.select('a')[:1]
+                        for sub_link in sub_links:
+                            sub_url = sub_link.get('href')
+                            if sub_url and sub_url.startswith('http'):
+                                sub_content = self.extract_text_from_url(sub_url)
+                                search_results.append({
+                                    "title": f"Sublink from {title}",
+                                    "link": sub_url,
+                                    "content": sub_content
+                                })
+            except Exception as e:
+                print(f"Error using {engine}: {e}")
+            finally:
+                driver.quit()
 
-            final_content = ' '.join(aggregated_content)
-            if len(final_content.split()) > 1500:
-                final_content = ' '.join(final_content.split()[:1500])
+        # Aggregate and filter the content
+        aggregated_content = []
+        for result in search_results:
+            sentences = sent_tokenize(result['content'])
+            filtered_sentences = [sentence for sentence in sentences if TextBlob(sentence).sentiment.subjectivity < 0.5]
+            aggregated_content.extend(filtered_sentences)
 
-            return json.dumps({"query": query, "results": final_content})
-        except Exception as e:
-            return json.dumps({"query": query, "error": str(e)})
-        finally:
-            driver.quit()
+        final_content = ' '.join(aggregated_content)
+        if len(final_content.split()) > 1500:
+            final_content = ' '.join(final_content.split()[:1500])
+
+        return json.dumps({"query": query, "results": final_content}) if final_content else json.dumps({"query": query, "error": "No results found."})
 
     def extract_text_from_pdf(self, pdf_url):
         try:
@@ -360,3 +361,4 @@ class LLM_API_Calls:
             except Exception as e:
                 print(f"Error in chat: {e}. Retrying...")
                 time.sleep(1)
+
