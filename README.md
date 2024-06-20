@@ -1,8 +1,5 @@
-# readme currently outdated and being updated soon!
+![Uploading image.png…]()
 
-
-# AURORA - Artificial Unified Responsive Optimized Reasoning Agent
-![image](https://github.com/Drlordbasil/AURORA/assets/126736516/dec07c25-3ef0-456b-b861-fc7460e6d9f7)
 
 
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
