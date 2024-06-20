@@ -182,19 +182,22 @@ class LLM_API_Calls:
             error_message = json.dumps({"message": f"Error executing command: {str(e)}"})
             return json.dumps({"command": command, "error": error_message})
 
-    def extract_text_from_url(self, url):
+    def _initialize_webdriver(self):
+        """Initialize and return a Chrome WebDriver with predefined options."""
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
+        return driver
 
+    def extract_text_from_url(self, url):
+        """Extract and return the main text content from a given URL."""
+        driver = self._initialize_webdriver()
         try:
             driver.get(url)
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             paragraphs = soup.find_all('p')
             text = ' '.join([p.get_text() for p in paragraphs])
-            prompt_for_summary = f"Summarize the content of the page.\n\n{text}"
-            text = self.client.chat.completions.create(model=self.model, messages=[{"role": "user", "content": prompt_for_summary}]).choices[0].message.content
             return text
         except Exception as e:
             return f"Error extracting text from {url}: {str(e)}"
@@ -202,11 +205,8 @@ class LLM_API_Calls:
             driver.quit()
 
     def web_research(self, query):
-        options = webdriver.ChromeOptions()
-        options.add_argument('--disable-gpu')
-        service = ChromeService(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
-
+        """Perform web research based on the given query and return aggregated content."""
+        driver = self._initialize_webdriver()
         try:
             driver.get("https://www.google.com")
             search_box = driver.find_element(By.NAME, "q")
