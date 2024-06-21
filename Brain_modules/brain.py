@@ -11,8 +11,8 @@ from Brain_modules.llm_api_calls import LLM_API_Calls, tools
 from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrieve_relevant_memory
 from Brain_modules.sentiment_analysis import analyze_sentiment
 from Brain_modules.image_vision import ImageVision
-from Brain_modules.lobes_processing import LobesProcessing
-from Brain_modules.cerebellar_lobe import CerebellarLobe  # Import the cerebellar lobe
+from Brain_modules.lobes.lobes_processing import LobesProcessing
+from Brain_modules.lobes.cerebellar_lobe import CerebellarLobe  # Import the cerebellar lobe
 
 class Brain:
     def __init__(self, api_key, status_update_callback):

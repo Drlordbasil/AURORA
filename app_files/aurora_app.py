@@ -15,14 +15,14 @@ from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.utils import get_color_from_hex
 
-from theme import ThemeManager
-from status_manager import StatusManager
-from recording_manager import RecordingManager
-from ui_components import BubbleLabel
+from app_files.theme import ThemeManager
+from app_files.status_manager import StatusManager
+from app_files.recording_manager import RecordingManager
+from app_files.ui_components import BubbleLabel
 from Brain_modules.brain import Brain
 from Brain_modules.llm_api_calls import LLM_API_Calls
-from Brain_modules.listen_lobe import AuroraRecorder
-from speaker import text_to_speech  # Add this import
+from Brain_modules.lobes.listen_lobe import AuroraRecorder
+from app_files.speaker import text_to_speech  # Add this import
 
 class AuroraApp(App):
     def __init__(self, **kwargs):
@@ -103,7 +103,7 @@ class AuroraApp(App):
         )
         self.status_label.bind(size=self._update_status_rect)
 
-        logo = Image(source='aurora.png', size_hint=(1, 0.3))
+        logo = Image(source='app_files/aurora.png', size_hint=(1, 0.3))
 
         right_layout.add_widget(logo)
         right_layout.add_widget(info_label)
