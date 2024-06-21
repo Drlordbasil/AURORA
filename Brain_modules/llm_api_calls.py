@@ -24,6 +24,10 @@ import chromadb
 from kivy.clock import Clock
 from PyPDF2 import PdfFileReader
 from io import BytesIO
+from datetime import datetime
+
+def get_current_datetime():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def test_python_code_on_windows_subprocess(script_raw):
     try:
@@ -33,19 +37,20 @@ def test_python_code_on_windows_subprocess(script_raw):
         output = result.stdout
         error = result.stderr
         if error:
-            output = json.dumps({"message": f"Script executed with errors: {error}"})
+            output = json.dumps({"message": f"Script executed with errors: {error}", "datetime": get_current_datetime()})
         else:
-            output = json.dumps({"message": f"Script executed successfully: {output}"})
+            output = json.dumps({"message": f"Script executed successfully: {output}", "datetime": get_current_datetime()})
         return json.dumps({"script": script_raw, "output": output, "error": error})
     except Exception as e:
-        error_message = json.dumps({"message": f"Error executing script: {str(e)}"})
+        error_message = json.dumps({"message": f"Error executing script: {str(e)}", "datetime": get_current_datetime()})
         return json.dumps({"script": script_raw, "error": error_message})
 
 chromadb_client = chromadb.Client()
 collection = chromadb_client.create_collection(name="aurora_test_phase")
 
 def time_now():
-    return time.strftime("%H:%M:%S")
+    return datetime.now().strftime("%H:%M:%S")
+
 time_now = time_now()
 print(time_now)
 
@@ -90,15 +95,15 @@ tools = [
             "name": "analyze_image",
             "description": "Analyze an image from a provided URL and generate a description of the image's content.",
             "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "image_url": {
-                                "type": "string",
-                                "description": "The URL of the image to analyze.",
-                            }
-                        },
-                        "required": ["image_url"],
-                    },
+                "type": "object",
+                "properties": {
+                    "image_url": {
+                        "type": "string",
+                        "description": "The URL of the image to analyze.",
+                    }
+                },
+                "required": ["image_url"],
+            },
         },
     },
     {
@@ -134,7 +139,36 @@ tools = [
                 "required": ["text"],
             },
         },
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_os_default_calendar",
+            "description": "Check the calendar for today or create a calendar event.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "The date to check or create an event for (YYYY-MM-DD). Defaults to today if not provided.",
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "The time for the event (HH:MM). Optional.",
+                    },
+                    "event_title": {
+                        "type": "string",
+                        "description": "The title of the event. Optional.",
+                    },
+                    "event_description": {
+                        "type": "string",
+                        "description": "The description of the event. Optional.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 def choose_API_provider():
@@ -224,7 +258,8 @@ class WebResearchTool:
                             search_results.append({
                                 "title": title,
                                 "link": link,
-                                "content": main_content
+                                "content": main_content,
+                                "datetime": get_current_datetime()
                             })
 
                             # Fetch additional sub-links for more information
@@ -239,7 +274,8 @@ class WebResearchTool:
                                         search_results.append({
                                             "title": f"Sublink from {title}",
                                             "link": sub_url,
-                                            "content": sub_content
+                                            "content": sub_content,
+                                            "datetime": get_current_datetime()
                                         })
                                         self._update_status(f"Sublink content extracted from {sub_url}: {sub_content[:100]}...")
             except Exception as e:
@@ -259,7 +295,7 @@ class WebResearchTool:
         if len(final_content.split()) > 1500:
             final_content = ' '.join(final_content.split()[:1500])
             self._update_status(f"Final content aggregated for {query}: {len(final_content.split())} words")
-        return json.dumps({"query": query, "results": final_content}) if final_content else json.dumps({"query": query, "error": "No results found."})
+        return json.dumps({"query": query, "results": final_content, "datetime": get_current_datetime()}) if final_content else json.dumps({"query": query, "error": "No results found.", "datetime": get_current_datetime()})
 
     def extract_text_from_pdf(self, pdf_url):
         self._update_status(f"Extracting text from PDF: {pdf_url}")
@@ -271,20 +307,19 @@ class WebResearchTool:
             for page_num in range(pdf_reader.numPages):
                 text += pdf_reader.getPage(page_num).extract_text()
             self._update_status(f"Text extracted from PDF: {text[:100]}...")  # Displaying only the first 100 characters
-            return json.dumps({"pdf_url": pdf_url, "text": text})
+            return json.dumps({"pdf_url": pdf_url, "text": text, "datetime": get_current_datetime()})
         except Exception as e:
             self._update_status(f"Error extracting text from PDF: {str(e)}")
-            return json.dumps({"pdf_url": pdf_url, "error": str(e)})
+            return json.dumps({"pdf_url": pdf_url, "error": str(e), "datetime": get_current_datetime()})
 
     def analyze_sentiment(self, text):
         try:
             sentiment = TextBlob(text).sentiment
             self._update_status(f"Sentiment analysis for: {text}")
-            return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}})
+            return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}, "datetime": get_current_datetime()})
         except Exception as e:
             self._update_status(f"Error analyzing sentiment: {str(e)}")
-            return json.dumps({"text": text, "error": str(e)})
-
+            return json.dumps({"text": text, "error": str(e), "datetime": get_current_datetime()})
 class LLM_API_Calls:
     def __init__(self, status_update_callback):
         self.client = None
@@ -298,33 +333,57 @@ class LLM_API_Calls:
             "analyze_image": self.image_vision.analyze_image,
             "extract_text_from_pdf": self.web_research_tool.extract_text_from_pdf,
             "analyze_sentiment": self.web_research_tool.analyze_sentiment,
+            "check_os_default_calendar": self.check_os_default_calendar
         }
         self.chat_history = []
         self.status_update_callback = status_update_callback
 
     def _update_status(self, message):
-        """
-        Update the status through the callback function.
-
-        Args:
-            message (str): The status message to be updated.
-        """
+        """Update the status through the callback function."""
         Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
 
+    def check_os_default_calendar(self, date=None, time=None, event_title=None, event_description=None):
+        """Check the calendar for today or create a calendar event."""
+        self._update_status(f"Checking calendar for {date or 'today'}")
+        try:
+            if date and event_title:
+                command = f'powershell.exe New-Event -Title "{event_title}"'
+                if time:
+                    command += f' -StartDate "{date}T{time}:00"'
+                else:
+                    command += f' -StartDate "{date}"'
+                if event_description:
+                    command += f' -Description "{event_description}"'
+                subprocess.run(command, shell=True)
+                output = f"Event '{event_title}' created on {date}."
+            else:
+                command = 'powershell.exe Get-Event | Where-Object { $_.StartDate -eq [datetime]::Today }'
+                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                output = result.stdout
+            self._update_status(f"Calendar check complete: {output}")
+            return json.dumps({"output": output, "datetime": get_current_datetime()})
+        except Exception as e:
+            error_message = json.dumps({"message": f"Error executing command: {str(e)}", "datetime": get_current_datetime()})
+            self._update_status(f"Error checking calendar: {error_message}")
+            return json.dumps({"error": error_message, "datetime": get_current_datetime()})
+
     def run_local_command(self, command):
+        """Execute a local command on the system to perform tasks such as file manipulation, retrieving system information, or running scripts."""
         self._update_status(f"Executing command: {command}")
         try:
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             output = result.stdout
             error = result.stderr
             if error:
-                output = json.dumps({"message": f"Command executed with errors: {error}"})
+                output = json.dumps({"message": f"Command executed with errors: {error}", "datetime": get_current_datetime()})
             else:
-                output = json.dumps({"message": f"Command executed successfully: {output}"})
-            return json.dumps({"command": command, "output": output, "error": error})
+                output = json.dumps({"message": f"Command executed successfully: {output}", "datetime": get_current_datetime()})
+            self._update_status(f"Local command executed: {output}")
+            return json.dumps({"command": command, "output": output, "error": error, "datetime": get_current_datetime()})
         except Exception as e:
-            error_message = json.dumps({"message": f"Error executing command: {str(e)}"})
-            return json.dumps({"command": command, "error": error_message})
+            error_message = json.dumps({"message": f"Error executing command: {str(e)}", "datetime": get_current_datetime()})
+            self._update_status(f"Error executing local command: {error_message}")
+            return json.dumps({"command": command, "error": error_message, "datetime": get_current_datetime()})
 
     def setup_client(self):
         try:
@@ -347,13 +406,13 @@ class LLM_API_Calls:
                 time.sleep(30)
 
         self.chat_history.append({"role": "user", "content": prompt})
-        self._update_status("Starting chat loop 1/3 of the chat process.")
+        self._update_status("Starting chat process.")
         while True:
             try:
                 system_prompt = f"""
                 {system_prompt}
-                current time:{time_now}
-
+                current time: {time.strftime('%H:%M:%S')}
+                current date and time: {get_current_datetime()}
                 """
                 messages = [{"role": "system", "content": system_prompt}] + self.chat_history
                 response = self.client.chat.completions.create(
@@ -364,10 +423,10 @@ class LLM_API_Calls:
                     max_tokens=4096
                 )
                 response_message = response.choices[0].message
-                self._update_status("Chat loop 1/4 completed.")
+                self._update_status("Chat loop 1/2 completed.")
                 tool_calls = response_message.tool_calls
-                self.chat_history.append(response_message)
-                self._update_status("Chat loop 2/4 completed.")
+                self.chat_history.append({"role": "assistant", "content": response_message.content})
+                self._update_status("Chat loop 2/2 completed.")
                 if tool_calls:
                     available_functions = self.available_functions
                     for tool_call in tool_calls:
@@ -380,36 +439,18 @@ class LLM_API_Calls:
                                 "tool_call_id": tool_call.id,
                                 "role": "tool",
                                 "name": function_name,
-                                "content": function_response,
+                                "content": function_response
                             }
                         )
+                        self._update_status(f"Function '{function_name}' executed with args {function_args}: {function_response}")
                     second_response = self.client.chat.completions.create(
                         model=self.model,
                         messages=self.chat_history
                     )
-                    second_response = second_response.choices[0].message.content
-                    self._update_status("Chat loop 3/4 completed.")
-                    self.chat_history.append({"role": "assistant", "content": second_response})
-
-                    third_response = self.client.chat.completions.create(
-                        model=self.model,
-                        messages=self.chat_history + [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "assistant", "content": f"I need to fact check the following information using my tools in my next response here is my last:\n[my_last_response] {second_response} [/my_last_response]\nwith another function call, please wait a moment."},
-                            {"role": "user", "content": f"""
-                            Use your tools and function calling that you have which are:
-                            {tools}
-                            Use the proper tool call to help with this user prompt:
-                        !start of user prompt.!
-                            {prompt}
-                        !/end of user prompt.!
-                        """}
-                        ]
-                    )
-                    third_response_content = third_response.choices[0].message.content
-                    self._update_status("Chat loop 4/4 completed.")
-                    self.chat_history.append({"role": "assistant", "content": third_response_content})
-                    return third_response_content
+                    second_response_content = second_response.choices[0].message.content
+                    self._update_status("Tool responses processed.")
+                    self.chat_history.append({"role": "assistant", "content": second_response_content})
+                    return second_response_content
                 else:
                     return response_message.content
             except APIConnectionError as e:

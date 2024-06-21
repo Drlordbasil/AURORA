@@ -1,5 +1,6 @@
 import os
 import threading
+import json
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
@@ -16,7 +17,6 @@ from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner
 from Brain_modules.brain import Brain
 from Brain_modules.llm_api_calls import LLM_API_Calls
-from kivy.uix.dropdown import DropDown
 from Brain_modules.listen_lobe import AuroraRecorder
 
 class BubbleLabel(BoxLayout):
@@ -51,13 +51,84 @@ class BubbleLabel(BoxLayout):
         self.rect.size = instance.size
         self.rect.pos = instance.pos
 
+class Theme:
+    def __init__(self, name, colors):
+        self.name = name
+        self.colors = colors
+
+class StatusManager:
+    def __init__(self, status_label):
+        self.status_label = status_label
+        self.default_color = (0.2, 1, 0.2, 1)
+        self.animation = None
+
+    def update(self, message, animate=False):
+        self.status_label.text = message
+        if animate:
+            if self.animation:
+                self.animation.cancel(self.status_label)
+            self.animation = Animation(color=self.default_color, duration=0.5) + Animation(color=self.default_color, duration=0.5)
+            self.animation.repeat = True
+            self.animation.start(self.status_label)
+        else:
+            if self.animation:
+                self.animation.cancel(self.status_label)
+            self.status_label.color = self.default_color
+
+class RecordingManager:
+    def __init__(self, recorder, record_button, callback):
+        self.recorder = recorder
+        self.record_button = record_button
+        self.callback = callback
+
+    def toggle_recording(self):
+        if self.record_button.text == "Record":
+            self.start_recording()
+        else:
+            self.stop_recording()
+
+    def start_recording(self):
+        self.recorder.start_recording()
+        self.record_button.text = "Stop Recording"
+        self.record_button.background_color = (0.86, 0.36, 0.36, 1)
+
+    def stop_recording(self):
+        self.recorder.stop_recording()
+        self.record_button.text = "Record"
+        self.record_button.background_color = (0.36, 0.86, 0.36, 1)
+
+    def on_transcription(self, text):
+        self.callback(text)
+
 class AuroraApp(App):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.themes = {
+            'Dark': Theme('Dark', {
+                'background': '#000000',
+                'text': '#33ff33',
+                'send_button': '#1E90FF',
+                'clear_button': '#DC143C',
+                'record_button': '#36D936',
+            }),
+            'Light': Theme('Light', {
+                'background': '#FFFFFF',
+                'text': '#000000',
+                'send_button': '#4169E1',
+                'clear_button': '#B22222',
+                'record_button': '#2ECC71',
+            })
+        }
+        self.current_theme = self.themes['Dark']
+
     def build(self):
         Window.bind(on_request_close=self.on_request_close)
 
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
-            self.show_error("Error", "GROQ_API_KEY environment variable not set.")
+            api_key = self.prompt_for_api_key()
+        if not api_key:
+            self.show_error("Error", "GROQ_API_KEY is required to run the application.")
             return
 
         self.root = BoxLayout(orientation='vertical', padding=10, spacing=10)
@@ -96,7 +167,6 @@ class AuroraApp(App):
             text="Record", size_hint=(0.3, 1),
             background_color=(0.36, 0.86, 0.36, 1), font_size=20, color=(1, 1, 1, 1)
         )
-        self.record_button.bind(on_press=self.toggle_recording)
         
         self.buttons_layout.add_widget(self.send_button)
         self.buttons_layout.add_widget(self.clear_button)
@@ -152,32 +222,53 @@ class AuroraApp(App):
 
         self.brain = Brain(api_key, self.update_status)
         self.llm_api_call = LLM_API_Calls(self.update_status)
-        self.recorder = AuroraRecorder(callback=self.on_transcription)
+        self.status_manager = StatusManager(self.status_label)
+        self.recording_manager = RecordingManager(
+            AuroraRecorder(callback=self.on_transcription),
+            self.record_button,
+            self.on_transcription
+        )
+        self.record_button.bind(on_press=lambda x: self.recording_manager.toggle_recording())
         self.spinner = None
 
+        self.load_chat_history()
         return self.root
 
+    def prompt_for_api_key(self):
+        layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.api_key_input = TextInput(hint_text='Enter your GROQ API key', multiline=False)
+        submit_button = Button(text='Submit', size_hint_y=None, height=44)
+        
+        layout.add_widget(Label(text='GROQ API Key not found in environment variables.'))
+        layout.add_widget(self.api_key_input)
+        layout.add_widget(submit_button)
+
+        popup = Popup(title='Enter API Key', content=layout, size_hint=(None, None), size=(400, 200))
+        
+        submit_button.bind(on_press=lambda x: self.set_api_key(popup))
+        popup.open()
+        return self.api_key_input.text
+
+    def set_api_key(self, popup):
+        os.environ["GROQ_API_KEY"] = self.api_key_input.text
+        popup.dismiss()
+
     def on_theme_change(self, spinner, text):
-        if text == 'Dark Theme':
-            self.set_dark_theme()
-        else:
-            self.set_light_theme()
+        self.set_theme(text.split()[0])  # 'Dark Theme' -> 'Dark'
 
-    def set_dark_theme(self):
-        self.root.canvas.before.children[0].rgba = get_color_from_hex("#000000")
-        self.prompt_input.background_color = get_color_from_hex("#000000")
-        self.prompt_input.foreground_color = get_color_from_hex("#33ff33")
-        self.status_label.color = get_color_from_hex("#33ff33")
-        self.send_button.background_color = get_color_from_hex("#1E90FF")
-        self.clear_button.background_color = get_color_from_hex("#DC143C")
+    def set_theme(self, theme_name):
+        self.current_theme = self.themes[theme_name]
+        self.apply_theme()
 
-    def set_light_theme(self):
-        self.root.canvas.before.children[0].rgba = get_color_from_hex("#FFFFFF")
-        self.prompt_input.background_color = get_color_from_hex("#FFFFFF")
-        self.prompt_input.foreground_color = get_color_from_hex("#000000")
-        self.status_label.color = get_color_from_hex("#008000")
-        self.send_button.background_color = get_color_from_hex("#4169E1")
-        self.clear_button.background_color = get_color_from_hex("#B22222")
+    def apply_theme(self):
+        colors = self.current_theme.colors
+        self.root.canvas.before.children[0].rgba = get_color_from_hex(colors['background'])
+        self.prompt_input.background_color = get_color_from_hex(colors['background'])
+        self.prompt_input.foreground_color = get_color_from_hex(colors['text'])
+        self.status_label.color = get_color_from_hex(colors['text'])
+        self.send_button.background_color = get_color_from_hex(colors['send_button'])
+        self.clear_button.background_color = get_color_from_hex(colors['clear_button'])
+        self.record_button.background_color = get_color_from_hex(colors['record_button'])
 
     def show_help(self, instance):
         help_popup = Popup(
@@ -241,39 +332,39 @@ class AuroraApp(App):
         background_color = get_color_from_hex("#000000") if user else get_color_from_hex("#008000")
         bubble = BubbleLabel(text=message, background_color=background_color)
         self.chat_content.add_widget(bubble)
-        self.chat_display.scroll_y = 0
-
     def clear_chat(self, instance):
-        self.chat_content.clear_widgets()
+            self.chat_content.clear_widgets()
 
     def update_status(self, message, animation=False):
-        self.status_label.text = message
-        if animation:
-            anim = Animation(color=(0.2, 1, 0.2, 1), duration=0.5) + Animation(color=(0.2, 1, 0.2, 1), duration=0.5)
-            anim.repeat = True
-            anim.start(self.status_label)
-        else:
-            self.status_label.color = (0.2, 1, 0.2, 1)
-
-    def toggle_recording(self, instance):
-        if self.record_button.text == "Record":
-            self.recorder.start_recording()
-            self.record_button.text = "Stop Recording"
-            self.record_button.background_color = (0.86, 0.36, 0.36, 1)
-        else:
-            self.recorder.stop_recording()
-            self.record_button.text = "Record"
-            self.record_button.background_color = (0.36, 0.86, 0.36, 1)
+        Clock.schedule_once(lambda dt: self.status_manager.update(message, animation), 0)
 
     def on_transcription(self, text):
         Clock.schedule_once(lambda dt: self.display_message(f"You (voice): {text}", user=True), 0)
         Clock.schedule_once(lambda dt: self.send_message(text), 0)
 
     def on_request_close(self, *args):
-        if hasattr(self, 'recorder'):
-            self.recorder.stop_recording()
+        if hasattr(self, 'recording_manager'):
+            self.recording_manager.stop_recording()
+        self.save_chat_history()
         App.get_running_app().stop()
         return True
+
+    def save_chat_history(self):
+        history = [{'text': child.children[0].text, 'user': isinstance(child.canvas.before.children[1], Color)} for child in self.chat_content.children]
+        with open('chat_history.json', 'w') as f:
+            json.dump(history, f)
+
+    def load_chat_history(self):
+        try:
+            with open('chat_history.json', 'r') as f:
+                history = json.load(f)
+            for message in reversed(history):
+                self.display_message(message['text'], user=message['user'])
+        except FileNotFoundError:
+            pass
+
+    def on_stop(self):
+        self.save_chat_history()
 
 if __name__ == "__main__":
     AuroraApp().run()

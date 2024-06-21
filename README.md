@@ -2,7 +2,7 @@
 
 AURORA is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses.
 
-![AURORA Overview](https://github.com/Drlordbasil/AURORA/assets/126736516/1a4945d3-fcbe-4fa9-8c19-b5396ecf8a45)
+![AURORA Overview]![alt text](image.png)
 ![AURORA Workflow](https://github.com/Drlordbasil/AURORA/assets/126736516/a8dff8fb-bfde-4233-bf32-de7c3220b8ff)
 ## Key Features
 
