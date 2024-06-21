@@ -12,7 +12,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.chat_models import ChatOllama
 import requests
-from textblob import TextBlob
 from nltk.tokenize import sent_tokenize
 from Brain_modules.image_vision import ImageVision
 from selenium import webdriver
@@ -22,8 +21,6 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import chromadb
 from kivy.clock import Clock
-from PyPDF2 import PdfFileReader
-from io import BytesIO
 from datetime import datetime
 
 def get_current_datetime():
@@ -93,50 +90,16 @@ tools = [
         "type": "function",
         "function": {
             "name": "analyze_image",
-            "description": "Analyze an image from a provided URL and generate a description of the image's content.",
+            "description": "Analyze an image from a provided URL or a local path and generate a description of the image's content.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "image_url": {
                         "type": "string",
-                        "description": "The URL of the image to analyze.",
+                        "description": "The URL or local path of the image to analyze.",
                     }
                 },
                 "required": ["image_url"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "extract_text_from_pdf",
-            "description": "Extract text content from a PDF file.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "pdf_url": {
-                        "type": "string",
-                        "description": "The URL of the PDF file.",
-                    }
-                },
-                "required": ["pdf_url"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "analyze_sentiment",
-            "description": "Analyze the sentiment of a given text.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "text": {
-                        "type": "string",
-                        "description": "The text to analyze.",
-                    }
-                },
-                "required": ["text"],
             },
         },
     },
@@ -231,7 +194,7 @@ class WebResearchTool:
 
     def web_research(self, query):
         """Perform web research based on the given query and return aggregated content."""
-        search_engines = ["https://www.google.com", "https://www.bing.com"]
+        search_engines = ["https://www.bing.com"]
         search_results = []
         self._update_status(f"Performing web research for: {query}")
         for engine in search_engines:
@@ -288,38 +251,13 @@ class WebResearchTool:
         aggregated_content = []
         for result in search_results:
             sentences = sent_tokenize(result['content'])
-            filtered_sentences = [sentence for sentence in sentences if TextBlob(sentence).sentiment.subjectivity < 0.5]
-            aggregated_content.extend(filtered_sentences)
-            self._update_status(f"Aggregated content from {result['link']}: {len(filtered_sentences)} sentences")
+            aggregated_content.extend(sentences)
+            self._update_status(f"Aggregated content from {result['link']}: {len(sentences)} sentences")
         final_content = ' '.join(aggregated_content)
         if len(final_content.split()) > 1500:
             final_content = ' '.join(final_content.split()[:1500])
             self._update_status(f"Final content aggregated for {query}: {len(final_content.split())} words")
         return json.dumps({"query": query, "results": final_content, "datetime": get_current_datetime()}) if final_content else json.dumps({"query": query, "error": "No results found.", "datetime": get_current_datetime()})
-
-    def extract_text_from_pdf(self, pdf_url):
-        self._update_status(f"Extracting text from PDF: {pdf_url}")
-        try:
-            response = requests.get(pdf_url)
-            self._update_status("PDF downloaded successfully.")
-            pdf_reader = PdfFileReader(BytesIO(response.content))
-            text = ""
-            for page_num in range(pdf_reader.numPages):
-                text += pdf_reader.getPage(page_num).extract_text()
-            self._update_status(f"Text extracted from PDF: {text[:100]}...")  # Displaying only the first 100 characters
-            return json.dumps({"pdf_url": pdf_url, "text": text, "datetime": get_current_datetime()})
-        except Exception as e:
-            self._update_status(f"Error extracting text from PDF: {str(e)}")
-            return json.dumps({"pdf_url": pdf_url, "error": str(e), "datetime": get_current_datetime()})
-
-    def analyze_sentiment(self, text):
-        try:
-            sentiment = TextBlob(text).sentiment
-            self._update_status(f"Sentiment analysis for: {text}")
-            return json.dumps({"text": text, "sentiment": {"polarity": sentiment.polarity, "subjectivity": sentiment.subjectivity}, "datetime": get_current_datetime()})
-        except Exception as e:
-            self._update_status(f"Error analyzing sentiment: {str(e)}")
-            return json.dumps({"text": text, "error": str(e), "datetime": get_current_datetime()})
 
 class LLM_API_Calls:
     def __init__(self, status_update_callback):
@@ -331,9 +269,7 @@ class LLM_API_Calls:
         self.available_functions = {
             "run_local_command": self.run_local_command,
             "web_research": self.web_research_tool.web_research,
-            "analyze_image": self.image_vision.analyze_image,
-            "extract_text_from_pdf": self.web_research_tool.extract_text_from_pdf,
-            "analyze_sentiment": self.web_research_tool.analyze_sentiment,
+            "analyze_image": self.analyze_image,
             "check_os_default_calendar": self.check_os_default_calendar
         }
         self.chat_history = []
@@ -386,6 +322,20 @@ class LLM_API_Calls:
             self._update_status(f"Error executing local command: {error_message}")
             return json.dumps({"command": command, "error": error_message, "datetime": get_current_datetime()})
 
+    def analyze_image(self, image_url):
+        """Analyze an image from a provided URL or a local path and generate a description of the image's content."""
+        try:
+            if os.path.exists(image_url):  # If it's a local path
+                description = self.image_vision.analyze_image_local(image_url)
+            else:  # Assume it's a URL
+                description = self.image_vision.analyze_image(image_url)
+            self._update_status(f"Image analysis completed for {image_url}")
+            return json.dumps({"image_url": image_url, "description": description, "datetime": get_current_datetime()})
+        except Exception as e:
+            error_message = json.dumps({"message": f"Error analyzing image: {str(e)}", "datetime": get_current_datetime()})
+            self._update_status(f"Error analyzing image: {error_message}")
+            return json.dumps({"image_url": image_url, "error": error_message, "datetime": get_current_datetime()})
+
     def setup_client(self):
         try:
             self.client, self.model = choose_API_provider()
@@ -414,6 +364,8 @@ class LLM_API_Calls:
                 {system_prompt}
                 current time: {time.strftime('%H:%M:%S')}
                 current date and time: {get_current_datetime()}
+                you do things the most efficient way possible combining your tool usage and your knowledge of the world and how computers work.
+                
                 """
                 messages = [{"role": "system", "content": system_prompt}] + self.chat_history
                 response = self.client.chat.completions.create(
@@ -421,7 +373,7 @@ class LLM_API_Calls:
                     messages=messages,
                     tools=tools,
                     tool_choice="auto",
-                    max_tokens=4096
+                    max_tokens=1200
                 )
                 response_message = response.choices[0].message
                 self._update_status("Chat loop 1/2 completed.")
