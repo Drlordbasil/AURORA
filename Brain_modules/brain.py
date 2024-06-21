@@ -1,5 +1,3 @@
-# brain.py
-
 import os
 import json
 import time
@@ -14,6 +12,7 @@ from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrie
 from Brain_modules.sentiment_analysis import analyze_sentiment
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.lobes_processing import LobesProcessing
+from Brain_modules.cerebellar_lobe import CerebellarLobe  # Import the cerebellar lobe
 
 class Brain:
     def __init__(self, api_key, status_update_callback):
@@ -29,6 +28,7 @@ class Brain:
         self.api_calls = LLM_API_Calls(self.status_update_callback)
         self.client = self.api_calls.client
         self.lobes_processing = LobesProcessing(self.image_vision)
+        self.cerebellar_lobe = CerebellarLobe()  # Initialize cerebellar lobe
         self.responses = Queue()
         self.threads = []
         self.chat_history = []
@@ -64,6 +64,8 @@ class Brain:
             for lobe_name in self.lobes_processing.lobes.keys():
                 response = self.lobes_processing.process_lobe(lobe_name, prompt)
                 self.responses.put((lobe_name, response))
+            cerebellar_response = self.cerebellar_lobe.process(prompt)  # Process prompt with cerebellar lobe
+            self.responses.put(("cerebellar", cerebellar_response))  # Add cerebellar response to the queue
             self._update_status(f"All lobes started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         except Exception as e:
             self._update_status(f"Error starting lobes: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")

@@ -320,6 +320,7 @@ class WebResearchTool:
         except Exception as e:
             self._update_status(f"Error analyzing sentiment: {str(e)}")
             return json.dumps({"text": text, "error": str(e), "datetime": get_current_datetime()})
+
 class LLM_API_Calls:
     def __init__(self, status_update_callback):
         self.client = None

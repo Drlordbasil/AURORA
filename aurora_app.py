@@ -227,8 +227,9 @@ class AuroraApp(App):
             response = self.brain.central_processing_agent(prompt)
             Clock.schedule_once(lambda dt: self.display_message(f"AURORA: {response}", user=False), 0)
             Clock.schedule_once(lambda dt: self.update_status("Completed"), 0)
-            # Use text_to_speech to play the response
-            text_to_speech(response)
+            
+            # Run text_to_speech in a separate thread
+            threading.Thread(target=text_to_speech, args=(response,)).start()
         except Exception as e:
             Clock.schedule_once(lambda dt: self.display_message(f"Error processing prompt: {e}", user=False), 0)
             Clock.schedule_once(lambda dt: self.update_status("Error"), 0)
@@ -248,7 +249,8 @@ class AuroraApp(App):
 
     def on_transcription(self, text):
         Clock.schedule_once(lambda dt: self.display_message(f"You (voice): {text}", user=True), 0)
-        Clock.schedule_once(lambda dt: self.send_message(text), 0)
+        # Run send_message in a separate thread
+        threading.Thread(target=self.send_message, args=(text,)).start()
 
     def on_request_close(self, *args):
         if hasattr(self, 'recording_manager'):
