@@ -1,33 +1,54 @@
+# wernickes_area.py
+
 import numpy as np
-import time
-from keras.models import Sequential
-from keras.layers import Dense, Input
-from keras.optimizers import Adam
+import pickle
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
 
 class WernickesArea:
     def __init__(self):
-        self.model = self._create_model()
+        self.language_keywords = ['understand', 'comprehend', 'meaning', 'language']
+        self.vectorizer = CountVectorizer()
+        self.model = MultinomialNB()
+        self.pipeline = make_pipeline(self.vectorizer, self.model)
 
-    def _create_model(self):
-        model = Sequential([
-            Input(shape=(1,)),
-            Dense(64, activation='relu'),
-            Dense(32, activation='relu'),
-            Dense(1, activation='sigmoid')
-        ])
-        optimizer = Adam(learning_rate=0.001)
-        model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-        return model
+        initial_data = ["I understand the meaning", "Comprehend the language", "The meaning is clear"]
+        initial_labels = [0, 1, 0]
+        self.pipeline.fit(initial_data, initial_labels)
+
+        self._load_model()
+
+    def _load_model(self):
+        try:
+            with open('wernickes_area_model.pkl', 'rb') as f:
+                self.pipeline = pickle.load(f)
+        except FileNotFoundError:
+            pass
+
+    def _save_model(self):
+        with open('wernickes_area_model.pkl', 'wb') as f:
+            pickle.dump(self.pipeline, f)
 
     def process(self, prompt):
-        print(f"Wernicke's Area processing at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         try:
-            comprehension = f"Wernicke's Area comprehends the following: {prompt}"
-            X_input = np.array([len(prompt.split())])
-            prediction = self.model.predict(X_input.reshape(1, -1))
-            for _ in range(5):
-                time.sleep(1)
-                print(f"Wernicke's Area thinking: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"Wernicke's Area Response: {comprehension}, Prediction: {prediction}"
+            features = self.pipeline.named_steps['countvectorizer'].transform([prompt])
+            prediction = self.pipeline.named_steps['multinomialnb'].predict(features)
+            language_analysis = self._analyze_language_content(prompt)
+            self._train_model(prompt, language_analysis)
+            return language_analysis
         except Exception as e:
-            return f"Error in Wernicke's Area processing: {str(e)}"
+            return f"Error processing wernickes area: {e}"
+
+    def _analyze_language_content(self, prompt):
+        words = prompt.lower().split()
+        language_words = [word for word in words if word in self.language_keywords]
+        if language_words:
+            return f"Language elements detected: {', '.join(language_words)}"
+        return "No explicit language elements detected"
+
+    def _train_model(self, prompt, analysis):
+        labels = [1 if "detected" in analysis else 0]
+        feature_vector = self.pipeline.named_steps['countvectorizer'].transform([prompt])
+        self.pipeline.named_steps['multinomialnb'].partial_fit(feature_vector, labels, classes=np.array([0, 1]))
+        self._save_model()

@@ -1,54 +1,54 @@
+# occipital_lobe.py
+
 import numpy as np
-import time
-import os
-import pyautogui
-from keras.models import Sequential
-from keras.layers import Dense, Input
-from keras.optimizers import Adam
-from Brain_modules.image_vision import ImageVision
+import pickle
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
 
 class OccipitalLobe:
     def __init__(self):
-        self.model = self._create_model()
-        self.image_vision = ImageVision()
+        self.visual_keywords = ['see', 'saw', 'look', 'view', 'observe']
+        self.vectorizer = CountVectorizer()
+        self.model = MultinomialNB()
+        self.pipeline = make_pipeline(self.vectorizer, self.model)
 
-    def _create_model(self):
-        model = Sequential([
-            Input(shape=(1,)),
-            Dense(64, activation='relu'),
-            Dense(32, activation='relu'),
-            Dense(1, activation='sigmoid')
-        ])
-        optimizer = Adam(learning_rate=0.001)
-        model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-        return model
+        initial_data = ["I see a bird", "Look at the sky", "Observe the stars"]
+        initial_labels = [0, 1, 0]
+        self.pipeline.fit(initial_data, initial_labels)
+
+        self._load_model()
+
+    def _load_model(self):
+        try:
+            with open('occipital_lobe_model.pkl', 'rb') as f:
+                self.pipeline = pickle.load(f)
+        except FileNotFoundError:
+            pass
+
+    def _save_model(self):
+        with open('occipital_lobe_model.pkl', 'wb') as f:
+            pickle.dump(self.pipeline, f)
 
     def process(self, prompt):
-        print(f"Occipital lobe processing at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        date_str = time.strftime("%Y-%m-%d")
-        if not os.path.exists(date_str):
-            os.makedirs(date_str)
-        
-        timestamp_str = time.strftime("%H-%M-%S")
-        screenshot_path = os.path.join(date_str, f"screenshot_{timestamp_str}.jpg")
-        screenshot = pyautogui.screenshot()
-        screenshot.save(screenshot_path)
-
         try:
-            images = [os.path.join(date_str, img) for img in os.listdir(date_str) if img.endswith('.jpg')]
-            descriptions = []
-            for img_path in images:
-                try:
-                    description = self.image_vision.analyze_image(img_path)
-                    descriptions.append(description)
-                except Exception as img_error:
-                    print(f"Error analyzing image {img_path}: {str(img_error)}")
-            combined_description = " ".join(descriptions)
-            X_input = np.array([len(images)])
-            prediction = self.model.predict(X_input.reshape(1, -1))
-            for _ in range(5):
-                time.sleep(1)
-                print(f"Occipital lobe thinking: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"Occipital Lobe Analysis: {combined_description}, Prediction: {prediction}"
+            features = self.pipeline.named_steps['countvectorizer'].transform([prompt])
+            prediction = self.pipeline.named_steps['multinomialnb'].predict(features)
+            visual_analysis = self._analyze_visual_content(prompt)
+            self._train_model(prompt, visual_analysis)
+            return visual_analysis
         except Exception as e:
-            return f"Error analyzing screenshot: {str(e)}"
+            return f"Error processing occipital lobe: {e}"
+
+    def _analyze_visual_content(self, prompt):
+        words = prompt.lower().split()
+        visual_words = [word for word in words if word in self.visual_keywords]
+        if visual_words:
+            return f"Visual elements detected: {', '.join(visual_words)}"
+        return "No explicit visual elements detected"
+
+    def _train_model(self, prompt, analysis):
+        labels = [1 if "detected" in analysis else 0]
+        feature_vector = self.pipeline.named_steps['countvectorizer'].transform([prompt])
+        self.pipeline.named_steps['multinomialnb'].partial_fit(feature_vector, labels, classes=np.array([0, 1]))
+        self._save_model()

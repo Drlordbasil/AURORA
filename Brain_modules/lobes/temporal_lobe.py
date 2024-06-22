@@ -1,38 +1,54 @@
+# temporal_lobe.py
+
 import numpy as np
-import time
-from textblob import TextBlob
-from nltk import word_tokenize, pos_tag
-from keras.models import Sequential
-from keras.layers import Dense, Input
-from keras.optimizers import Adam
+import pickle
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
 
 class TemporalLobe:
     def __init__(self):
-        self.model = self._create_model()
+        self.auditory_keywords = ['hear', 'listen', 'sound', 'music']
+        self.vectorizer = CountVectorizer()
+        self.model = MultinomialNB()
+        self.pipeline = make_pipeline(self.vectorizer, self.model)
 
-    def _create_model(self):
-        model = Sequential([
-            Input(shape=(1,)),
-            Dense(64, activation='relu'),
-            Dense(32, activation='relu'),
-            Dense(1, activation='sigmoid')
-        ])
-        optimizer = Adam(learning_rate=0.001)
-        model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-        return model
+        initial_data = ["I hear music", "Listen to the sound", "The sound is loud"]
+        initial_labels = [0, 1, 0]
+        self.pipeline.fit(initial_data, initial_labels)
+
+        self._load_model()
+
+    def _load_model(self):
+        try:
+            with open('temporal_lobe_model.pkl', 'rb') as f:
+                self.pipeline = pickle.load(f)
+        except FileNotFoundError:
+            pass
+
+    def _save_model(self):
+        with open('temporal_lobe_model.pkl', 'wb') as f:
+            pickle.dump(self.pipeline, f)
 
     def process(self, prompt):
-        print(f"Temporal lobe processing at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         try:
-            blob = TextBlob(prompt)
-            sentiment = blob.sentiment
-            pos_tags = pos_tag(word_tokenize(prompt))
-            keywords = [word for word, pos in pos_tags if pos.startswith('NN') or pos.startswith('VB')]
-            X_input = np.array([len(keywords)])
-            prediction = self.model.predict(X_input.reshape(1, -1))
-            for _ in range(5):
-                time.sleep(1)
-                print(f"Temporal lobe thinking: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"Temporal Lobe Analysis: Sentiment - {sentiment}, Keywords - {keywords}, POS Tags - {pos_tags}, Prediction: {prediction}"
+            features = self.pipeline.named_steps['countvectorizer'].transform([prompt])
+            prediction = self.pipeline.named_steps['multinomialnb'].predict(features)
+            auditory_analysis = self._analyze_auditory_content(prompt)
+            self._train_model(prompt, auditory_analysis)
+            return f"Auditory analysis complete. {auditory_analysis} Full analysis: {auditory_analysis}"
         except Exception as e:
-            return f"Error in temporal lobe processing: {str(e)}"
+            return f"Error processing temporal lobe: {e}"
+
+    def _analyze_auditory_content(self, prompt):
+        words = prompt.lower().split()
+        auditory_words = [word for word in words if word in self.auditory_keywords]
+        if auditory_words:
+            return f"Auditory elements detected: {', '.join(auditory_words)}"
+        return "No explicit auditory elements detected"
+
+    def _train_model(self, prompt, analysis):
+        labels = [1 if "detected" in analysis else 0]
+        feature_vector = self.pipeline.named_steps['countvectorizer'].transform([prompt])
+        self.pipeline.named_steps['multinomialnb'].partial_fit(feature_vector, labels, classes=np.array([0, 1]))
+        self._save_model()

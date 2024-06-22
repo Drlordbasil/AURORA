@@ -1,6 +1,4 @@
-from kivy.core.window import Window
-from kivy.utils import get_color_from_hex
-from kivy.app import App
+
 
 from app_files.aurora_app import AuroraApp
 

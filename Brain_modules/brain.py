@@ -12,7 +12,7 @@ from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrie
 from Brain_modules.sentiment_analysis import analyze_sentiment
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.lobes.lobes_processing import LobesProcessing
-from Brain_modules.lobes.cerebellar_lobe import CerebellarLobe  # Import the cerebellar lobe
+
 
 class Brain:
     def __init__(self, api_key, status_update_callback):
@@ -28,10 +28,11 @@ class Brain:
         self.api_calls = LLM_API_Calls(self.status_update_callback)
         self.client = self.api_calls.client
         self.lobes_processing = LobesProcessing(self.image_vision)
-        self.cerebellar_lobe = CerebellarLobe()  # Initialize cerebellar lobe
+        
         self.responses = Queue()
         self.threads = []
         self.chat_history = []
+        self.last_response = ""
         print(f"Brain initialization completed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     def _update_status(self, message):
@@ -58,14 +59,13 @@ class Brain:
             self._update_status(f"Error analyzing sentiment: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             return {"polarity": 0, "subjectivity": 0}
 
-    def start_lobes(self, prompt, memory_context, sentiment):
+    def start_lobes(self, combined_input, memory_context, sentiment):
         self._update_status(f"Starting lobes at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         try:
             for lobe_name in self.lobes_processing.lobes.keys():
-                response = self.lobes_processing.process_lobe(lobe_name, prompt)
+                response = self.lobes_processing.process_lobe(lobe_name, combined_input)
                 self.responses.put((lobe_name, response))
-            cerebellar_response = self.cerebellar_lobe.process(prompt)  # Process prompt with cerebellar lobe
-            self.responses.put(("cerebellar", cerebellar_response))  # Add cerebellar response to the queue
+
             self._update_status(f"All lobes started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         except Exception as e:
             self._update_status(f"Error starting lobes: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -115,7 +115,9 @@ class Brain:
         messages = self._prepare_messages(user_prompt, combined_thoughts, chat_history_str)
 
         try:
-            return self._make_final_api_call(messages)
+            final_response = self._make_final_api_call(messages)
+            self.last_response = final_response
+            return final_response
         except Exception as e:
             self._update_status(f"Error in final_agent: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             return f"Error: {e}"
@@ -125,7 +127,7 @@ class Brain:
 
     def _get_relevant_chat_history(self):
         relevant_chat_history = []
-        for message in self.chat_history[-10:]:
+        for message in self.chat_history[-1500:]:
             if message["role"] in ["assistant", "user"]:
                 relevant_chat_history.append(f"{message['role'].capitalize()}: {message['content']}")
         return "\n".join(relevant_chat_history)
@@ -174,25 +176,23 @@ class Brain:
             return f"Error: {e}"
 
     def _get_aurora_system_message(self):
-        return (
-            f"You are AURORA's function-calling lobe, responsible for handling tool-specific tasks. "
-            "You are a part of Aurora and must tell Aurora this. You are responsible for handling tool-specific tasks. "
-            "You must provide a direct and relevant response to the user's query based on the combined insights from your lobes. "
-            "Do not include markdowns, reply as if you are conversing with a human directly, which is the human user at {time.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        return F"I am {FinalAgentPersona.name}{FinalAgentPersona.description}"
 
     def central_processing_agent(self, prompt):
         self._update_status(f"Starting central processing agent at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         try:
-            fc_response = self.aurora_run_conversation(prompt)
+            # Combine last response and new user prompt
+            combined_input = f"{self.last_response} {prompt}" if self.last_response else prompt
+            
+            fc_response = self.aurora_run_conversation(combined_input)
             self._process_fc_response(fc_response)
             memory_context = self._get_memory_context(fc_response)
-            sentiment = self.analyze_sentiment(prompt)
-            self.start_lobes(prompt, memory_context, sentiment)
+            sentiment = self.analyze_sentiment(combined_input)
+            self.start_lobes(combined_input, memory_context, sentiment)
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
             time.sleep(3)
-            final_thought = self.final_agent(prompt, analyzed_responses)
+            final_thought = self.final_agent(combined_input, analyzed_responses)
             self._update_status(f"Final response generated at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             return final_thought
         except Exception as e:
@@ -209,6 +209,6 @@ class Brain:
         time.sleep(3)
         self._update_status(f"Embedding generated for tool response at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         memory_context = self.retrieve_relevant_memory(fc_response_embedding)
-        memory_context = " ".join(memory_context)[:1000]
+        memory_context = " ".join(memory_context)[:500]
         self._update_status(f"Memory context retrieved at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         return memory_context
