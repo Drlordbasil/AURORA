@@ -13,3 +13,8 @@ combined_audio.mp3
 chat_history.json
 
 output.wav
+occipital_lobe_model.pkl
+occipital_lobe_model.pkl
+parietal_lobe_model.pkl
+*.pkl
+
