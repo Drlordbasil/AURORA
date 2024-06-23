@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURORA: AI Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='customization.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -12,10 +13,10 @@
             <div class="chat-display" id="chat-display"></div>
             <div class="input-area">
                 <input type="text" id="prompt-input" placeholder="Ask Aurora...">
-                <button id="send-button">Send</button>
-                <button id="clear-button">Clear</button>
-                <button id="tts-toggle">Toggle TTS</button>
-                <button id="record-button">Record</button>
+                <button id="send-button"><i class="fas fa-paper-plane"></i></button>
+                <button id="clear-button"><i class="fas fa-trash"></i></button>
+                <button id="tts-toggle"><i class="fas fa-volume-up"></i></button>
+                <button id="record-button"><i class="fas fa-microphone"></i></button>
             </div>
         </div>
         <div class="info-panel">
@@ -24,18 +25,19 @@
                 <h2>AURORA</h2>
                 <p>Artificial Unified Responsive Optimized Reasoning Agent</p>
                 <ul>
-                    <li>Execute local commands</li>
-                    <li>Perform web research</li>
-                    <li>Analyze images</li>
-                    <li>Extract text from PDFs</li>
-                    <li>Analyze sentiment</li>
-                    <li>Voice recognition</li>
+                    <li><i class="fas fa-terminal"></i> Execute local commands</li>
+                    <li><i class="fas fa-search"></i> Perform web research</li>
+                    <li><i class="fas fa-image"></i> Analyze images</li>
+                    <li><i class="fas fa-file-pdf"></i> Extract text from PDFs</li>
+                    <li><i class="fas fa-chart-bar"></i> Analyze sentiment</li>
+                    <li><i class="fas fa-microphone"></i> Voice recognition</li>
                 </ul>
             </div>
             <div id="status-label">Ready</div>
         </div>
     </div>
-    <button id="theme-toggle">Toggle Theme</button>
+    <button id="theme-toggle"><i class="fas fa-adjust"></i></button>
+    <button class="info-toggle"><i class="fas fa-info-circle"></i></button>
 
     <script src="{{ url_for('static', filename='customization.js') }}"></script>
     <audio id="audio-player" controls style="display:none;"></audio>

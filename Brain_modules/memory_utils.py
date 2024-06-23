@@ -1,5 +1,5 @@
 import ollama
-from kivy.clock import Clock
+
 
 def generate_embedding(text, embeddings_model, collection, collection_size):
     try:

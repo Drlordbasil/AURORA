@@ -11,7 +11,7 @@ from app_files.status_manager import StatusManager
 app = Flask(__name__)
 
 # Initialize components
-brain = Brain(api_key=os.environ.get("GROQ_API_KEY"), status_update_callback=lambda x: print(f"Status: {x}"))
+brain = Brain()
 aurora_recorder = AuroraRecorder()
 status_manager = StatusManager(None)  # We'll update this with a proper status update function
 

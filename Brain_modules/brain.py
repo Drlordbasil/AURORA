@@ -1,214 +1,130 @@
-import os
 import json
 import time
-import logging
 from queue import Queue
-import numpy as np
-from utilities import setup_embedding_collection
 from Brain_modules.final_agent_persona import FinalAgentPersona
-from kivy.clock import Clock
 from Brain_modules.llm_api_calls import LLM_API_Calls, tools
 from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrieve_relevant_memory
 from Brain_modules.sentiment_analysis import analyze_sentiment
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.lobes.lobes_processing import LobesProcessing
-
+from utilities import setup_embedding_collection
 
 class Brain:
-    def __init__(self, api_key, status_update_callback):
-        self._initialize(api_key, status_update_callback)
+    def __init__(self):
+        self._initialize()
 
-    def _initialize(self, api_key, status_update_callback):
-        print(f"Initializing Brain with API key at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    def _initialize(self):
+        print(f"Initializing Brain at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         self.tts_enabled = True
-        self.embeddings_model = "mxbai-embed-large"
         self.collection, self.collection_size = setup_embedding_collection()
-        self.status_update_callback = status_update_callback
         self.image_vision = ImageVision()
-        self.api_calls = LLM_API_Calls(self.status_update_callback)
+        self.api_calls = LLM_API_Calls()
         self.client = self.api_calls.client
         self.lobes_processing = LobesProcessing(self.image_vision)
-        
+        self.embeddings_model = "mxbai-embed-large"
         self.responses = Queue()
-        self.threads = []
         self.chat_history = []
         self.last_response = ""
         print(f"Brain initialization completed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
-    def _update_status(self, message):
-        Clock.schedule_once(lambda dt: self.status_update_callback(message), 0)
-
     def toggle_tts(self):
         self.tts_enabled = not self.tts_enabled
-        status = "enabled" if self.tts_enabled else "disabled"
-        self._update_status(f"Text-to-Speech {status} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-    def retrieve_relevant_memory(self, prompt_embedding):
-        self._update_status(f"Retrieving relevant memory at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        try:
-            return retrieve_relevant_memory(prompt_embedding, self.collection)
-        except Exception as e:
-            self._update_status(f"Error retrieving relevant memory: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return []
-
-    def analyze_sentiment(self, text):
-        self._update_status(f"Analyzing sentiment at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        try:
-            return analyze_sentiment(text)
-        except Exception as e:
-            self._update_status(f"Error analyzing sentiment: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return {"polarity": 0, "subjectivity": 0}
+        return "enabled" if self.tts_enabled else "disabled"
 
     def start_lobes(self, combined_input, memory_context, sentiment):
-        self._update_status(f"Starting lobes at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        try:
-            for lobe_name in self.lobes_processing.lobes.keys():
-                response = self.lobes_processing.process_lobe(lobe_name, combined_input)
-                self.responses.put((lobe_name, response))
-
-            self._update_status(f"All lobes started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        except Exception as e:
-            self._update_status(f"Error starting lobes: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        for lobe_name, lobe in self.lobes_processing.lobes.items():
+            response = lobe.process(combined_input)
+            self.responses.put((lobe_name, response))
 
     def process_responses(self):
-        self._update_status(f"Processing responses at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        try:
-            aggregated_responses = self._aggregate_responses()
-            self._add_responses_to_memory(aggregated_responses)
-            return aggregated_responses
-        except Exception as e:
-            self._update_status(f"Error processing responses: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return {}
+        aggregated_responses = self._aggregate_responses()
+        self._add_responses_to_memory(aggregated_responses)
+        return aggregated_responses
 
     def _aggregate_responses(self):
-        aggregated_responses = {}
-        while not self.responses.empty():
-            lobe_name, response = self.responses.get()
-            aggregated_responses[lobe_name] = response
-        self._update_status(f"Responses aggregated at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        return aggregated_responses
+        return {lobe_name: response for lobe_name, response in self.responses.queue}
 
     def _add_responses_to_memory(self, aggregated_responses):
         add_to_memory(json.dumps(aggregated_responses), self.embeddings_model, self.collection, self.collection_size)
-        self.chat_history.append({"role": "assistant", "content": f"Aggregated responses from lobes and thinking processes for AURORA: {aggregated_responses}"})
-        self._update_status(f"Responses processed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-    def analyze_responses(self, responses):
-        self._update_status(f"Analyzing responses at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        try:
-            for lobe, response in responses.items():
-                logging.info(f"{lobe}: {response}")
-            self._update_status(f"Responses analyzed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return responses
-        except Exception as e:
-            self._update_status(f"Error analyzing responses: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return responses
-
-    def final_agent(self, user_prompt, aggregated_responses):
-        self._update_status(f"Combining thoughts into a coherent response at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        combined_thoughts = self._combine_thoughts(aggregated_responses)
-        chat_history_str = self._get_relevant_chat_history()
-        
-        self._update_status(f"Running final agent at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.chat_history.append({"role": "assistant", "content": f"Combined thoughts: {combined_thoughts}"})
-        
-        messages = self._prepare_messages(user_prompt, combined_thoughts, chat_history_str)
-
-        try:
-            final_response = self._make_final_api_call(messages)
-            self.last_response = final_response
-            return final_response
-        except Exception as e:
-            self._update_status(f"Error in final_agent: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"Error: {e}"
+        self.chat_history.append({"role": "assistant", "content": f"AURORA responses: {aggregated_responses}"})
 
     def _combine_thoughts(self, aggregated_responses):
-        return "\n".join(f"[{lobe}] {response}" for lobe, response in aggregated_responses.items())
+        return "\n".join(f"[{lobe}] {str(response)[:100]}" for lobe, response in aggregated_responses.items())
 
     def _get_relevant_chat_history(self):
-        relevant_chat_history = []
-        for message in self.chat_history[-1500:]:
-            if message["role"] in ["assistant", "user"]:
-                relevant_chat_history.append(f"{message['role'].capitalize()}: {message['content']}")
-        return "\n".join(relevant_chat_history)
+        return "\n".join(f"{msg['role'].capitalize()}: {msg['content'][:50]}" 
+                         for msg in self.chat_history[-3:] 
+                         if msg['role'] in ["assistant", "user"])
 
     def _prepare_messages(self, user_prompt, combined_thoughts, chat_history_str):
         return [
-            {
-                "role": "system",
-                "content": f"{FinalAgentPersona.name}. {FinalAgentPersona.description} You have access to various tools and functions which you can use to gather information, perform tasks, and analyze data. Your tools include running local commands, performing web research, analyzing images, extracting text from PDFs, and analyzing sentiment. Consider the thoughts from all your lobes and use them to formulate a coherent response to the user prompt. Focus on providing a direct and relevant answer to the user's query.\n\n[lobe_context]{combined_thoughts}[/lobe_context]\n\n{FinalAgentPersona.user_info}\n\nChat History:\n{chat_history_str}",
-            },
-            {
-                "role": "user",
-                "content": f"User Prompt Start\n{user_prompt}\nUser Prompt End",
-            }
+            {"role": "system", "content": f"NEVER EXPLAIN YOUR THOUGHTS UNLESS BREIFLY UPON REQUEST ONLY. You are {FinalAgentPersona.name}. {FinalAgentPersona.description[:100]}"},
+            {"role": "user", "content": f"Prompt: {user_prompt}\nContext: {combined_thoughts}NEVER EXPLAIN YOUR THOUGHTS UNLESS BREIFLY UPON REQUEST ONLY\nHistory: {chat_history_str}"}
         ]
 
-    def _make_final_api_call(self, messages):
-        self._update_status(f"Making final API call at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        chat_completion = self.client.chat.completions.create(
-            messages=messages,
-            model="llama3-70b-8192",
-        )
-        final_response = chat_completion.choices[0].message.content.strip()
-        self._update_status(f"Final response received at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.chat_history.append({"role": "assistant", "content": final_response})
-        return final_response
-
     def aurora_run_conversation(self, user_prompt):
-        self._update_status(f"AURORA conversation started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         self.chat_history.append({"role": "user", "content": user_prompt})
-
-        system_message = self._get_aurora_system_message()
+        system_message = f"you are {FinalAgentPersona.name} {FinalAgentPersona.description}"
 
         try:
-            self._update_status(f"Making API call at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             response = self.api_calls.chat(system_message, user_prompt)
+            if isinstance(response, dict) and 'error' in response:
+                return f"Error: {response['error']} at {response['datetime']}"
             
-            tool_response = response.strip()
-            self._update_status(f"Tool response received at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-            self.chat_history.append({"role": "assistant", "content": f"my tool calls agent as AURORA: {tool_response}"})
-            
+            tool_response = response.strip() if isinstance(response, str) else json.dumps(response)
+            self.chat_history.append({"role": "assistant", "content": f"AURORA: {tool_response[:100]}"})
             return tool_response
         except Exception as e:
-            self._update_status(f"Error in aurora_run_conversation: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"Error: {e}"
-
-    def _get_aurora_system_message(self):
-        return F"I am {FinalAgentPersona.name}{FinalAgentPersona.description}"
+            return f"Error in aurora_run_conversation: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
 
     def central_processing_agent(self, prompt):
-        self._update_status(f"Starting central processing agent at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         try:
-            combined_input = f"{self.last_response} {prompt}" if self.last_response else prompt
-            print(f"Combined input for processing: {combined_input}")  # Debugging statement
+            combined_input = f"{self.last_response[:50]} {prompt}"
+            print(f"Processing: {combined_input[:100]}")
             
             fc_response = self.aurora_run_conversation(combined_input)
+            if fc_response.startswith("Error"):
+                return fc_response
+
             self._process_fc_response(fc_response)
             memory_context = self._get_memory_context(fc_response)
-            sentiment = self.analyze_sentiment(combined_input)
+            sentiment = analyze_sentiment(combined_input)
             self.start_lobes(combined_input, memory_context, sentiment)
             responses = self.process_responses()
             analyzed_responses = self.analyze_responses(responses)
-            time.sleep(3)
             final_thought = self.final_agent(combined_input, analyzed_responses)
-            self._update_status(f"Final response generated at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Final response generated at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             return final_thought
         except Exception as e:
-            self._update_status(f"Error in central_processing_agent: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"Error: {e}"
+            return f"Error in central_processing_agent: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
 
     def _process_fc_response(self, fc_response):
-        add_to_memory(fc_response, self.embeddings_model, self.collection, self.collection_size)
-        time.sleep(3)
-        self._update_status(f"Tool response added to memory at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        add_to_memory(fc_response[:1500], self.embeddings_model, self.collection, self.collection_size)
+        print(f"Processed fc_response at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     def _get_memory_context(self, fc_response):
-        fc_response_embedding = generate_embedding(fc_response, self.embeddings_model, self.collection, self.collection_size)
-        time.sleep(3)
-        self._update_status(f"Embedding generated for tool response at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        memory_context = self.retrieve_relevant_memory(fc_response_embedding)
-        memory_context = " ".join(memory_context)[:500]
-        self._update_status(f"Memory context retrieved at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        return memory_context
+        fc_response_embedding = add_to_memory(fc_response[:500], self.embeddings_model, self.collection, self.collection_size)
+        memory_context = retrieve_relevant_memory(fc_response_embedding, self.collection)
+        return " ".join(memory_context)[:1500]
+
+    def analyze_responses(self, responses):
+        return {lobe: {"response": str(response)[:100], "sentiment": analyze_sentiment(str(response))} 
+                for lobe, response in responses.items()}
+
+    def final_agent(self, user_prompt, aggregated_responses):
+        combined_thoughts = self._combine_thoughts(aggregated_responses)
+        chat_history_str = self._get_relevant_chat_history()
+        messages = self._prepare_messages(user_prompt, combined_thoughts, chat_history_str)
+
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model="llama3-70b-8192",
+                
+            )
+            final_response = chat_completion.choices[0].message.content.strip()
+            self.chat_history.append({"role": "assistant", "content": final_response[:100]})
+            self.last_response = final_response
+            return final_response
+        except Exception as e:
+            return f"Error in final_agent: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"

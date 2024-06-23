@@ -6,6 +6,8 @@ const ttsToggleButton = document.getElementById('tts-toggle');
 const recordButton = document.getElementById('record-button');
 const statusLabel = document.getElementById('status-label');
 const themeToggle = document.getElementById('theme-toggle');
+const infoPanel = document.querySelector('.info-panel');
+const infoToggle = document.querySelector('.info-toggle');
 
 let isRecording = false;
 let isDarkTheme = true;
@@ -13,9 +15,29 @@ let isDarkTheme = true;
 function displayMessage(message, isUser = true) {
     const messageElement = document.createElement('div');
     messageElement.className = `message ${isUser ? 'user-message' : 'aurora-message'}`;
-    messageElement.textContent = isUser ? `You: ${message}` : `AURORA: ${message}`;
+    
+    // Format code blocks
+    message = message.replace(/```([\s\S]*?)```/g, (match, p1) => {
+        return `<div class="code-block">${p1}</div>`;
+    });
+
+    // Auto-format long text
+    message = formatLongText(message);
+
+    messageElement.innerHTML = isUser ? `You: ${message}` : `AURORA: ${message}`;
     chatDisplay.appendChild(messageElement);
     chatDisplay.scrollTop = chatDisplay.scrollHeight;
+}
+
+function formatLongText(text, maxLineLength = 80) {
+    return text.split(' ').reduce((lines, word) => {
+        if (lines[lines.length - 1].length + word.length + 1 > maxLineLength) {
+            lines.push(word);
+        } else {
+            lines[lines.length - 1] += ' ' + word;
+        }
+        return lines;
+    }, ['']).join('\n');
 }
 
 function updateStatus(message, animate = false) {
@@ -31,6 +53,7 @@ function playAudio(audioFile) {
 async function sendMessage(message) {
     displayMessage(message, true);
     updateStatus('Processing...', true);
+    showTypingIndicator();
     
     try {
         const response = await fetch('/send_message', {
@@ -40,6 +63,7 @@ async function sendMessage(message) {
         });
         
         const data = await response.json();
+        hideTypingIndicator();
         displayMessage(data.response, false);
         if (data.audio_file) {
             playAudio(data.audio_file);
@@ -48,6 +72,22 @@ async function sendMessage(message) {
     } catch (error) {
         console.error('Error:', error);
         updateStatus('Error occurred');
+        hideTypingIndicator();
+    }
+}
+
+function showTypingIndicator() {
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'typing-indicator';
+    typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+    chatDisplay.appendChild(typingIndicator);
+    chatDisplay.scrollTop = chatDisplay.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingIndicator = chatDisplay.querySelector('.typing-indicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
     }
 }
 
@@ -124,6 +164,10 @@ themeToggle.addEventListener('click', () => {
     document.body.style.setProperty('--highlight-color', isDarkTheme ? '#0f3460' : '#e0e0e0');
 });
 
+infoToggle.addEventListener('click', () => {
+    infoPanel.classList.toggle('show');
+});
+
 async function loadChatHistory() {
     try {
         const response = await fetch('/chat_history.json');
@@ -135,4 +179,4 @@ async function loadChatHistory() {
 }
 
 loadChatHistory();
-updateStatus('Ready');
+updateStatus('Ready');  
