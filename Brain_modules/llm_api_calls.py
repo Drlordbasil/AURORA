@@ -11,10 +11,8 @@ import tiktoken
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.tool_call_functions.web_research import WebResearchTool
 from Brain_modules.define_tools import tools
+MAX_TOKENS_PER_MINUTE = 4000
 
-# Constants for token limits
-MAX_TOKENS_PER_MINUTE = 6000
-API_CALL_MAX_TOKENS = 800
 
 def get_current_datetime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -169,8 +167,7 @@ class LLM_API_Calls:
                 model=self.model,
                 messages=messages,
                 tools=tools,
-                tool_choice="auto",
-                max_tokens=API_CALL_MAX_TOKENS
+                tool_choice="auto"
             )
             response_message = response.choices[0].message
             self._update_status("Chat response received.")

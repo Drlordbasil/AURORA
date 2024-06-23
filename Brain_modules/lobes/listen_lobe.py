@@ -1,22 +1,27 @@
 import os
-import keyboard
 import sounddevice as sd
 import soundfile as sf
 from groq import Groq
 import threading
 
 class AuroraRecorder:
-    def __init__(self, callback=None):
-        self.callback = callback
+    def __init__(self):
         self.client = Groq()
         self.recording = False
         self.audio_path = "output.wav"
+        self.transcription = None
 
     def start_recording(self):
+        if self.recording:
+            print("Already recording")
+            return
         self.recording = True
         threading.Thread(target=self._record_audio).start()
 
     def stop_recording(self):
+        if not self.recording:
+            print("Not recording")
+            return
         self.recording = False
 
     def _record_audio(self):
@@ -45,6 +50,5 @@ class AuroraRecorder:
                 temperature=0.0
             )
         
-        if self.callback:
-            self.callback(response.text)
-
+        self.transcription = response.text
+        print(f"Transcription: {self.transcription}")

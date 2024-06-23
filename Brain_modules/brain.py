@@ -181,8 +181,8 @@ class Brain:
     def central_processing_agent(self, prompt):
         self._update_status(f"Starting central processing agent at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         try:
-            # Combine last response and new user prompt
             combined_input = f"{self.last_response} {prompt}" if self.last_response else prompt
+            print(f"Combined input for processing: {combined_input}")  # Debugging statement
             
             fc_response = self.aurora_run_conversation(combined_input)
             self._process_fc_response(fc_response)

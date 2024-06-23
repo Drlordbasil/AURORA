@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURORA: AI Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='customization.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="chat-panel">
+            <div class="chat-display" id="chat-display"></div>
+            <div class="input-area">
+                <input type="text" id="prompt-input" placeholder="Ask Aurora...">
+                <button id="send-button">Send</button>
+                <button id="clear-button">Clear</button>
+                <button id="tts-toggle">Toggle TTS</button>
+                <button id="record-button">Record</button>
+            </div>
+        </div>
+        <div class="info-panel">
+            <img id="logo" src="{{ url_for('static', filename='aurora.png') }}" alt="Aurora Logo">
+            <div class="info-text">
+                <h2>AURORA</h2>
+                <p>Artificial Unified Responsive Optimized Reasoning Agent</p>
+                <ul>
+                    <li>Execute local commands</li>
+                    <li>Perform web research</li>
+                    <li>Analyze images</li>
+                    <li>Extract text from PDFs</li>
+                    <li>Analyze sentiment</li>
+                    <li>Voice recognition</li>
+                </ul>
+            </div>
+            <div id="status-label">Ready</div>
+        </div>
+    </div>
+    <button id="theme-toggle">Toggle Theme</button>
+
+    <script src="{{ url_for('static', filename='customization.js') }}"></script>
+    <audio id="audio-player" controls style="display:none;"></audio>
+</body>
+</html>

@@ -1,5 +1,4 @@
 from deepgram import DeepgramClient, SpeakOptions
-import playsound
 import os
 
 def text_to_speech(text):
@@ -9,7 +8,7 @@ def text_to_speech(text):
     else:
         DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
 
-    FILENAME = "response.mp3"
+    FILENAME = "combined_audio.mp3"
 
     try:
         deepgram = DeepgramClient(DEEPGRAM_API_KEY)
@@ -22,8 +21,7 @@ def text_to_speech(text):
         else:
             chunks = [text]
 
-        combined_audio_file = "combined_audio.mp3"
-        with open(combined_audio_file, "wb") as combined_audio:
+        with open(FILENAME, "wb") as combined_audio:
             for i, chunk in enumerate(chunks):
                 chunk_filename = f"audio_chunk_{i}.mp3"
                 response = deepgram.speak.v("1").save(chunk_filename, {"text": chunk}, options)
@@ -31,9 +29,8 @@ def text_to_speech(text):
                     combined_audio.write(chunk_file.read())
                 os.remove(chunk_filename)  # Remove chunk file after processing
 
-        playsound.playsound(combined_audio_file)
-        print(f"Audio saved as {combined_audio_file}")
-        os.remove(combined_audio_file)  # Remove combined audio file after playing
+        print(f"Audio saved as {FILENAME}")
+        return FILENAME
 
     except Exception as e:
         print(f"Exception: {e}")

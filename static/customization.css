@@ -1,0 +1,144 @@
+:root {
+    --bg-color: #1a1a2e;
+    --text-color: #e0e0e0;
+    --accent-color: #16213e;
+    --highlight-color: #0f3460;
+    --aurora-color: #00ff9d;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    height: 100%;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    height: 100%;
+}
+
+.chat-panel {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background-color: var(--accent-color);
+}
+
+.info-panel {
+    flex: 1;
+    padding: 20px;
+    background-color: var(--highlight-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-display {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: var(--bg-color);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 20px;
+    max-width: 80%;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.user-message {
+    background-color: var(--highlight-color);
+    color: var(--text-color);
+    align-self: flex-end;
+    margin-left: 20%;
+}
+
+.aurora-message {
+    background-color: var(--accent-color);
+    color: var(--aurora-color);
+    align-self: flex-start;
+    margin-right: 20%;
+}
+
+.input-area {
+    display: flex;
+    gap: 10px;
+}
+
+#prompt-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 20px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 16px;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    background-color: var(--highlight-color);
+    color: var (--text-color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: var(--aurora-color);
+    color: var (--bg-color);
+}
+
+#logo {
+    width: 150px;
+    height: 150px;
+    margin-bottom: 20px;
+}
+
+.info-text {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#status-label {
+    font-weight: bold;
+    color: var (--aurora-color);
+}
+
+#theme-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .info-panel {
+        order: -1;
+        padding: 10px;
+    }
+
+    #logo {
+        width: 100px;
+        height: 100px;
+    }
+}
