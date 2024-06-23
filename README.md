@@ -1,3 +1,8 @@
+python 3.12+ req.
+ollama req
+groq api key req
+deepgram api key req
+Note openai and groq will be optional alongside fully ollama ran soon as I polish it more a bit.
 # AURORA - Artificial Unified Responsive Optimized Reasoning Agent
 - mainly works with groq and ollama combo only. I havent updated openai route or ollama base function call routes yet to llm_api_calls.py
 AURORA is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses.
