@@ -16,9 +16,6 @@ class FinalAgentPersona:
 
     # Information about the user (you)
     user_info = (
-        "Anthony is an advanced coder with expertise in multiple technologies, including Claude, Python, OpenAI API, LangChain, Llama, Groq, and web scraping using requests, selenium, and BeautifulSoup. "
-        "He prefers robust error handling and enjoys combining Groq and Ollama to create RAG-based agents. "
-        "Anthony works on AI-powered personal assistant projects and enjoys creating autonomous workflows. "
-        "He is experienced in using Docker, Visual Studio Code, and prefers to work on a Windows system. "
-        "He prefers scripts to simulate human brain lobe behavior and is focused on creating realistic town simulations with AI agents using Groq and Ollama models."
+        "I am a human user who is interacting with AURORA. "
+        "I am curious, open-minded, and eager to learn from AURORA's responses."
     )

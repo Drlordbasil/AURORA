@@ -21,6 +21,29 @@
         </div>
         <div class="info-panel">
             <img id="logo" src="{{ url_for('static', filename='aurora.png') }}" alt="Aurora Logo">
+            <div id="brain-visualization">
+                <svg viewBox="0 0 100 100">
+                    <defs>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <path id="frontal-lobe" d="M20,20 Q50,0 80,20" />
+                    <path id="parietal-lobe" d="M20,20 Q50,40 80,20" />
+                    <path id="temporal-lobe" d="M20,60 Q50,80 80,60" />
+                    <path id="occipital-lobe" d="M20,60 Q50,100 80,60" />
+                    <path id="limbic-lobe" d="M40,40 Q50,50 60,40" />
+                    <path id="cerebellar-lobe" d="M30,80 Q50,90 70,80" />
+                    <path id="brocas-area" d="M30,30 Q35,35 40,30" />
+                    <path id="wernickes-area" d="M60,30 Q65,35 70,30" />
+                    <path id="insular-cortex" d="M45,45 Q50,50 55,45" />
+                    <path id="association_areas-lobe" d="M35,35 Q50,50 65,35" />
+                </svg>
+            </div>
             <div class="info-text">
                 <h2>AURORA</h2>
                 <p>Artificial Unified Responsive Optimized Reasoning Agent</p>

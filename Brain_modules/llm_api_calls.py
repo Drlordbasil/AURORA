@@ -17,6 +17,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 MAX_TOKENS_PER_MINUTE = 5500  # Reduced from 6000 to provide a buffer
 MAX_RETRIES = 3
 BACKOFF_FACTOR = 2
+from Brain_modules.final_agent_persona import FinalAgentPersona
 
 def get_current_datetime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -129,11 +130,12 @@ class LLM_API_Calls:
             return {"error": str(e), "datetime": get_current_datetime()}
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def chat(self, system_prompt, prompt):
+    def chat(self, prompt):
         self.reset_token_usage()
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": f"You are {FinalAgentPersona.name}. {FinalAgentPersona.description} who has access to function calling and here is which ones you can use and how to get creative with them to match or meet the users requests with a tool or function call if needed, if not dont worry about it."},
+
+            {"role": "user", "content": prompt},
         ]
 
         try:

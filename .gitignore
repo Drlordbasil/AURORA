@@ -18,3 +18,4 @@ occipital_lobe_model.pkl
 parietal_lobe_model.pkl
 *.pkl
 
+experiments/gamer.py

@@ -11,20 +11,23 @@ const infoToggle = document.querySelector('.info-toggle');
 
 let isRecording = false;
 let isDarkTheme = true;
+let activeLobes = new Set();
 
-function displayMessage(message, isUser = true) {
+function displayMessage(message, isUser = true, type = 'normal') {
     const messageElement = document.createElement('div');
-    messageElement.className = `message ${isUser ? 'user-message' : 'aurora-message'}`;
+    messageElement.className = `message ${isUser ? 'user-message' : 'aurora-message'} ${type}-message`;
     
-    // Format code blocks
     message = message.replace(/```([\s\S]*?)```/g, (match, p1) => {
         return `<div class="code-block">${p1}</div>`;
     });
 
-    // Auto-format long text
     message = formatLongText(message);
 
-    messageElement.innerHTML = isUser ? `You: ${message}` : `AURORA: ${message}`;
+    if (type === 'individual') {
+        messageElement.innerHTML = `${message}`;
+    } else {
+        messageElement.innerHTML = isUser ? `You: ${message}` : `AURORA: ${message}`;
+    }
     chatDisplay.appendChild(messageElement);
     chatDisplay.scrollTop = chatDisplay.scrollHeight;
 }
@@ -43,6 +46,14 @@ function formatLongText(text, maxLineLength = 80) {
 function updateStatus(message, animate = false) {
     statusLabel.textContent = message;
     statusLabel.style.animation = animate ? 'pulse 1s infinite' : 'none';
+    
+    const statusElement = document.createElement('div');
+    statusElement.className = 'message system-message';
+    statusElement.textContent = message;
+    chatDisplay.appendChild(statusElement);
+    chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+    updateBrainVisualization(message);
 }
 
 function playAudio(audioFile) {
@@ -64,7 +75,11 @@ async function sendMessage(message) {
         
         const data = await response.json();
         hideTypingIndicator();
-        displayMessage(data.response, false);
+        
+        if (data.response) {
+            displayMessage(data.response, false);
+        }
+        
         if (data.audio_file) {
             playAudio(data.audio_file);
         }
@@ -89,6 +104,26 @@ function hideTypingIndicator() {
     if (typingIndicator) {
         typingIndicator.remove();
     }
+}
+
+function updateBrainVisualization(message) {
+    const lobes = ['frontal', 'parietal', 'temporal', 'occipital', 'limbic', 'cerebellar', 'brocas', 'wernickes', 'insular', 'association_areas'];
+    const mentionedLobes = lobes.filter(lobe => message.toLowerCase().includes(lobe));
+    
+    mentionedLobes.forEach(lobe => activeLobes.add(lobe));
+    
+    lobes.forEach(lobe => {
+        const element = document.getElementById(`${lobe}-lobe`);
+        if (element) {
+            element.style.fill = activeLobes.has(lobe) ? '#00ff9d' : '#333333';
+            element.style.filter = activeLobes.has(lobe) ? 'url(#glow)' : 'none';
+        }
+    });
+
+    setTimeout(() => {
+        mentionedLobes.forEach(lobe => activeLobes.delete(lobe));
+        updateBrainVisualization('');
+    }, 5000);
 }
 
 sendButton.addEventListener('click', () => {
@@ -127,7 +162,7 @@ recordButton.addEventListener('click', async () => {
             const response = await fetch('/start_recording', { method: 'POST' });
             const data = await response.json();
             isRecording = true;
-            recordButton.textContent = 'Stop Recording';
+            recordButton.innerHTML = '<i class="fas fa-stop"></i>';
             recordButton.style.backgroundColor = '#DC143C';
             updateStatus(data.status, true);
         } catch (error) {
@@ -136,15 +171,18 @@ recordButton.addEventListener('click', async () => {
         }
     } else {
         try {
+            updateStatus('Stopping recording...', true);
             const response = await fetch('/stop_recording', { method: 'POST' });
             const data = await response.json();
             isRecording = false;
-            recordButton.textContent = 'Record';
+            recordButton.innerHTML = '<i class="fas fa-microphone"></i>';
             recordButton.style.backgroundColor = '';
-            updateStatus('Recording stopped');
+            updateStatus('Processing completed');
             if (data.transcription) {
                 displayMessage(data.transcription, true);
-                displayMessage(data.response, false);
+                if (data.response) {
+                    displayMessage(data.response, false);
+                }
                 if (data.audio_file) {
                     playAudio(data.audio_file);
                 }
@@ -158,10 +196,10 @@ recordButton.addEventListener('click', async () => {
 
 themeToggle.addEventListener('click', () => {
     isDarkTheme = !isDarkTheme;
-    document.body.style.setProperty('--bg-color', isDarkTheme ? '#1a1a2e' : '#ffffff');
+    document.body.style.setProperty('--bg-color', isDarkTheme ? '#0a0a1e' : '#f0f0f0');
     document.body.style.setProperty('--text-color', isDarkTheme ? '#e0e0e0' : '#333333');
-    document.body.style.setProperty('--accent-color', isDarkTheme ? '#16213e' : '#f0f0f0');
-    document.body.style.setProperty('--highlight-color', isDarkTheme ? '#0f3460' : '#e0e0e0');
+    document.body.style.setProperty('--accent-color', isDarkTheme ? '#16213e' : '#d0d0d0');
+    document.body.style.setProperty('--highlight-color', isDarkTheme ? '#0f3460' : '#c0c0c0');
 });
 
 infoToggle.addEventListener('click', () => {
@@ -178,5 +216,18 @@ async function loadChatHistory() {
     }
 }
 
+function handleProgressUpdates() {
+    const eventSource = new EventSource('/progress_updates');
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updateStatus(data.message, true);
+    };
+    eventSource.onerror = function(error) {
+        console.error('Error in progress updates:', error);
+        eventSource.close();
+    };
+}
+
 loadChatHistory();
-updateStatus('Ready');  
+handleProgressUpdates();
+updateStatus('Ready');

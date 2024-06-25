@@ -5,7 +5,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
-from datetime import datetime
 import trafilatura
 from selenium.common.exceptions import WebDriverException, NoSuchElementException
 
@@ -41,23 +40,9 @@ class WebResearchTool:
             text = ' '.join(p.get_text().strip() for p in soup.find_all('p') if len(p.get_text().strip()) > 20)
             driver.quit()
             return text if len(text) >= 50 else None
-        except Exception:
+        except Exception as e:
+            print(f"Error extracting text from URL {url}: {e}")
             return None
-
-    def summarize_content(self, content, query):
-        try:
-            system_prompt = "You are a highly skilled researcher and summarizer. Your task is to create a concise, informative summary of the provided content, focusing on the most relevant information related to the given query."
-            user_prompt = f"Query: {query}\n\nContent to summarize: {content}\n\nPlease provide a concise summary (around 150 words) that captures the most important and relevant information related to the query."
-            
-            max_content_tokens = self.max_tokens - len(system_prompt.split()) - len(user_prompt.split()) - 200
-            if len(content.split()) > max_content_tokens:
-                content = ' '.join(content.split()[:max_content_tokens]) + "..."
-                user_prompt = f"Query: {query}\n\nContent to summarize (truncated): {content}\n\nPlease provide a concise summary (around 150 words) that captures the most important and relevant information related to the query."
-
-            summary = self.chat_function(system_prompt, user_prompt)
-            return summary.strip()
-        except Exception:
-            return content[:1000] + "..." if len(content) > 1000 else content
 
     def web_research(self, query):
         search_engines = [
@@ -88,7 +73,8 @@ class WebResearchTool:
                                 "link": link,
                                 "content": content,
                             })
-            except (WebDriverException, NoSuchElementException):
+            except (WebDriverException, NoSuchElementException) as e:
+                print(f"Error with search engine {engine}: {e}")
                 continue
             finally:
                 driver.quit()
@@ -97,6 +83,4 @@ class WebResearchTool:
             return f"No results found for the query: {query}"
 
         aggregated_content = "\n\n".join([result['content'] for result in search_results])
-        summary = self.summarize_content(aggregated_content, query)
-
-        return summary if summary else f"Unable to summarize results for the query: {query}"
+        return aggregated_content if aggregated_content else f"Unable to retrieve relevant content for the query: {query}"
