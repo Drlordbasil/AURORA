@@ -17,9 +17,20 @@ aurora_recorder = AuroraRecorder()
 progress_queue = Queue()
 
 def update_progress(message):
+    """Update the progress queue with a new message."""
     progress_queue.put(message)
 
 def process_input(input_text):
+    """
+    Process the input text through the Brain module.
+
+    Args:
+        input_text (str): The input text to be processed.
+
+    Returns:
+        dict: The response and status of the processing.
+        str: The audio file if TTS is enabled, else None.
+    """
     if not input_text:
         update_progress("Error: No input provided.")
         return {'response': 'No input provided.', 'status': 'Error'}, None
@@ -42,20 +53,24 @@ def process_input(input_text):
 
 @app.before_request
 def before_request():
+    """Log the start time of the request."""
     g.start_time = time.time()
 
 @app.after_request
 def after_request(response):
+    """Log the time taken to process the request."""
     diff = time.time() - g.start_time
     print(f"Request processed in {diff:.2f} seconds")
     return response
 
 @app.route('/')
 def index():
+    """Render the main index page."""
     return render_template('index.html')
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
+    """Handle sending a message."""
     data = request.json
     message = data.get('message')
     
@@ -71,11 +86,13 @@ def send_message():
 
 @app.route('/toggle_tts', methods=['POST'])
 def toggle_tts():
+    """Toggle the Text-to-Speech (TTS) functionality."""
     status = brain.toggle_tts()
     return jsonify({'status': f'Text-to-Speech {status}'})
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
+    """Start recording audio."""
     try:
         aurora_recorder.start_recording()
         return jsonify({'status': 'Recording started'})
@@ -84,6 +101,7 @@ def start_recording():
 
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
+    """Stop recording audio and process the transcription."""
     try:
         update_progress("Stopping recording...")
         aurora_recorder.stop_recording()
@@ -101,14 +119,17 @@ def stop_recording():
 
 @app.route('/get_audio/<filename>', methods=['GET'])
 def get_audio(filename):
+    """Serve the generated audio file."""
     return send_file(filename, mimetype="audio/mp3")
 
 @app.route('/get_detailed_info', methods=['GET'])
 def get_detailed_info():
+    """Return detailed information from the brain module."""
     return brain.get_detailed_info()
 
 @app.route('/progress_updates')
 def progress_updates():
+    """Provide progress updates as a server-sent event stream."""
     def generate():
         while True:
             message = progress_queue.get()
@@ -117,9 +138,11 @@ def progress_updates():
 
 @app.route('/chat_history.json')
 def chat_history():
+    """Return the chat history as a JSON response."""
     return jsonify(brain.chat_history)
 
 def open_browser():
+    """Open the web browser to the application URL."""
     webbrowser.open_new('http://127.0.0.1:5000/')
 
 if __name__ == '__main__':

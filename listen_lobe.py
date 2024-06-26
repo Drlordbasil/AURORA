@@ -6,25 +6,37 @@ import threading
 
 class AuroraRecorder:
     def __init__(self):
+        """Initialize the AuroraRecorder with default settings."""
         self.client = Groq()
         self.recording = False
         self.audio_path = "output.wav"
         self.transcription = None
+        self._recording_thread = None
+        self._lock = threading.Lock()
 
     def start_recording(self):
-        if self.recording:
-            print("Already recording")
-            return
-        self.recording = True
-        threading.Thread(target=self._record_audio).start()
+        """Start recording audio."""
+        with self._lock:
+            if self.recording:
+                print("Already recording")
+                return
+            self.recording = True
+            self.transcription = None
+            self._recording_thread = threading.Thread(target=self._record_audio)
+            self._recording_thread.start()
 
     def stop_recording(self):
-        if not self.recording:
-            print("Not recording")
-            return
-        self.recording = False
+        """Stop recording audio."""
+        with self._lock:
+            if not self.recording:
+                print("Not recording")
+                return
+            self.recording = False
+            if self._recording_thread:
+                self._recording_thread.join()  # Ensure the recording thread has finished
 
     def _record_audio(self):
+        """Record audio in a separate thread."""
         print("Recording audio...")
         samplerate = 16000  # 16kHz
         channels = 1  # mono
@@ -37,6 +49,7 @@ class AuroraRecorder:
         self.transcribe_audio(self.audio_path)
 
     def transcribe_audio(self, file_path):
+        """Transcribe the recorded audio using Groq."""
         if not os.path.isfile(file_path):
             print("The provided file path is not valid.")
             return None

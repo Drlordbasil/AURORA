@@ -19,3 +19,6 @@ parietal_lobe_model.pkl
 *.pkl
 
 experiments/gamer.py
+Brain_modules/__pycache__/brain.cpython-312.pyc
+Brain_modules/__pycache__/brain.cpython-312.pyc
+selector_rl_state.json

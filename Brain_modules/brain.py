@@ -127,7 +127,7 @@ Example Structure:
 4. Suggestions for further actions or tool usage if applicable
 5. Conclusion or follow-up question to ensure user satisfaction
 Be as friendly and conversationally concise and to the point but also informative as possible in your response.
-use emojis to make the response more engaging and human-like
+use emojis to make the response more engaging and human-like. 
 
 #####BEGIN_USER_input_TO_YOU#####
 User Input: "{user_input}"

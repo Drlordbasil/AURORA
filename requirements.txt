@@ -15,3 +15,10 @@ openai
 groq
 ollama
 tiktoken
+flask
+pillow
+datasets
+chromadb
+sounddevice
+soundfile
+deepgram-sdk
