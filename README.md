@@ -1,59 +1,77 @@
-python 3.12+ req.
-ollama req
-groq api key req
-deepgram api key req
-Note openai and groq will be optional alongside fully ollama ran soon as I polish it more a bit.
-# AURORA - Artificial Unified Responsive Optimized Reasoning Agent
-- mainly works with groq and ollama combo only. I havent updated openai route or ollama base function call routes yet to llm_api_calls.py
-AURORA is a sophisticated AI system designed to simulate the human brain's reasoning process. It utilizes multiple "lobes" that function similarly to human brain lobes, each responsible for different cognitive tasks. These lobes work together to provide coherent, insightful, and contextually appropriate responses.
 
-![alt text](image-1.png)
+# AURORA - AI Chatbot with Brain-like Functions
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/network)
+[![Issues](https://img.shields.io/github/issues/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/issues)
+[![Contributors](https://img.shields.io/github/contributors/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/graphs/contributors)
+
+## Overview
+
+**AURORA** is a smart AI chatbot that mimics the brain's different functions to provide insightful and context-aware interactions. It's perfect for research, coding help, sentiment analysis, and more!
 
 ## Key Features
 
-- **Brain Lobes**:
-  - **Frontal**: Reasoning, planning, problem-solving.
-  - **Parietal**: Sensory information processing.
-  - **Temporal**: Social context, auditory processing.
-  - **Occipital**: Visual information processing.
-  - Additional lobes: Limbic, Cerebellar, Broca's Area, Wernicke's Area, Insular Cortex, and Association Areas.
+- **Brain-like Architecture**: Specialized modules (lobes) for various tasks.
+- **Real-time Info**: Uses multiple search engines for up-to-date answers.
+- **Sentiment Analysis**: Understands the emotional tone of your inputs.
+- **Continuous Learning**: Learns and improves from interactions.
 
-- **Function Calling**:
-  - Execute local commands, web research, image analysis.
-  - PDF text extraction, sentiment analysis.
+## Quick Start
 
-- **Text-to-Speech**:
-  - Convert responses to speech using Deepgram's capabilities.
+### Prerequisites
 
-- **Embeddings and Memory**:
-  - Generate embeddings, store in a collection, and retrieve relevant memories for context.
+- Python 3.12+
+- Git
 
-- **Central Processing**:
-  - Coordinate handling prompts, function calls, memory management.
-  - Lobe responses, and final response generation.
+### Installation
 
-- **Error Handling**:
-  - Robust error handling with retries and user feedback.
+1. **Clone the repo**:
+    ```bash
+    git clone https://github.com/Drlordbasil/AURORA.git
+    cd AURORA
+    ```
 
-- **GUI**:
-  - Info box, status updates, graceful exit, professional design.
-  - Animated status bar, logo display.
+2. **Set up a virtual environment**:
+    ```bash
+    python -m venv env
+    source env/bin/activate  # On Windows use `env\Scripts\activate`
+    ```
 
-- **Advanced AI Integration**:
-  - Utilize models and APIs like Groq and Ollama.
+3. **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-## How It Works
+### Run AURORA
 
-1. User inputs a prompt.
-2. Relevant tools gather information (web, files, images).
-3. Prompt is processed by individual lobes for specialized insights.
-4. Lobe responses are combined into a coherent final response.
-5. Response can be converted to speech output.
+```bash
+python main.py
+```
 
-AURORA aims to provide human-like reasoning and cognitive capabilities through its modular design and integration with advanced technologies and AI models.
+### Example Usage
+
+```python
+from brain import Brain
+
+brain = Brain()
+response = brain.process_input("Tell me about the latest in AI.", print)
+print(response)
+```
+
+## Contributing
+
+We welcome contributions! Feel free to fork the project, create a new branch, and submit a pull request.
+
+## License
+
+MIT License. See the [LICENSE](LICENSE) file for more details.
+
 ## Contact
 
-For any questions or issues, please open an issue on GitHub or contact me directly at [drlordbasil@gmail.com](mailto:drlordbasil@gmail.com).
-## Acknowledgements
+Questions? Reach out to Anthony Snider at [drlordbasil@gmail.com](mailto:drlordbasil@gmail.com).
 
-AURORA is built using various technologies and libraries, including [Groq](https://console.groq.com/docs/models), [Ollama](https://github.com/ollama/ollama), and [ChromaDB](https://github.com/chroma-core/chroma).
+---
+
+This version is friendly, concise, and easy to understand.
