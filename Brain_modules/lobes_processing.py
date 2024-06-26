@@ -10,7 +10,6 @@ from Brain_modules.lobes.temporal_lobe import TemporalLobe
 from Brain_modules.lobes.occipital_lobe import OccipitalLobe
 from Brain_modules.lobes.limbic_lobe import LimbicLobe
 from Brain_modules.lobes.cerebellar_lobe import CerebellarLobe
-from Brain_modules.lobes.brocas_area import BrocasArea
 from Brain_modules.lobes.insular_cortex import InsularCortex
 from Brain_modules.lobes.association_areas import AssociationAreas
 from Brain_modules.lobes.wernickes_area import WernickesArea
@@ -35,7 +34,6 @@ class LobesProcessing:
             "occipital": OccipitalLobe,
             "limbic": LimbicLobe,
             "cerebellar": CerebellarLobe,
-            "brocas_area": BrocasArea,
             "wernickes_area": WernickesArea,
             "insular": InsularCortex,
             "association_areas": AssociationAreas
