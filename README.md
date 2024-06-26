@@ -1,5 +1,5 @@
 
-# AURORA - AI Chatbot with Brain-like lobe Functions
+# AURORA (Artificial Unified Responsive Optimized Reasoning Agent) - AI Chatbot with Brain-like lobe Functions
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/stargazers)
