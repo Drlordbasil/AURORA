@@ -1,5 +1,5 @@
 
-# AURORA - AI Chatbot with Brain-like Functions
+# AURORA - AI Chatbot with Brain-like lobe Functions
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/stargazers)
@@ -62,7 +62,7 @@ print(response)
 
 ## Contributing
 
-We welcome contributions! Feel free to fork the project, create a new branch, and submit a pull request.
+I welcome contributions! Feel free to fork the project, create a new branch, and submit a pull request.
 
 ## License
 
@@ -72,6 +72,3 @@ MIT License. See the [LICENSE](LICENSE) file for more details.
 
 Questions? Reach out to Anthony Snider at [drlordbasil@gmail.com](mailto:drlordbasil@gmail.com).
 
----
-
-This version is friendly, concise, and easy to understand.
