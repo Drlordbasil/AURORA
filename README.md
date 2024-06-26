@@ -17,8 +17,8 @@
 - **Real-time Info**: Uses multiple search engines for up-to-date answers.
 - **Sentiment Analysis**: Understands the emotional tone of your inputs.
 - **Continuous Learning**: Learns and improves from interactions.
-![Web Browser tool](browser_readme.png)
-![gui](gui_img.png)
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/cb37aca1-a29e-4f1a-a200-1cab5ba981ac)
+
 ## Quick Start
 
 ### Prerequisites
