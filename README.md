@@ -17,7 +17,8 @@
 - **Real-time Info**: Uses multiple search engines for up-to-date answers.
 - **Sentiment Analysis**: Understands the emotional tone of your inputs.
 - **Continuous Learning**: Learns and improves from interactions.
-
+![Web Browser tool](browser_readme.png)
+![gui](gui_img.png)
 ## Quick Start
 
 ### Prerequisites
