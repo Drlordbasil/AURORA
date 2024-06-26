@@ -79,18 +79,21 @@ class Brain:
         return final_response
 
     def _construct_initial_prompt(self, user_input: str) -> str:
-        return f"""As an advanced AI assistant named AURORA, analyze the following user input:
+        return f"""As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
+        analyze the following context and user input to generate an initial response to the user_input section with a tool use
+        as a function calling LLM the tool use function with the user_input as the argument:
+        ###TOOLS###
+        tools: {tools}
+        ###END TOOLS###
 
-User Input: "{user_input}"
+        #######user_input#######
+        User Input: "{user_input}"
+        ######## end_user_input#######
 
-Provide an initial assessment and potential approach to addressing the user's query or request. 
-Consider the following aspects:
-1. The main intent or goal of the user's input
-2. Any specific information or actions requested
-3. Potential areas where additional clarification might be needed
-4. Preliminary thoughts on how to best assist the user
 
-Your response should be concise yet informative, setting the stage for a more detailed analysis."""
+
+        your tool call:
+        """
 
     def _construct_final_prompt(self, user_input: str, initial_response: str, 
                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float) -> str:
@@ -98,7 +101,7 @@ Your response should be concise yet informative, setting the stage for a more de
 
 User Input: "{user_input}"
 
-Initial Analysis: {initial_response}
+tool use results: {initial_response}
 
 Lobe Processing Results:
 {json.dumps(lobe_responses, indent=2)}
@@ -123,7 +126,14 @@ Example Structure:
 3. Integration of relevant lobe insights and memory context
 4. Suggestions for further actions or tool usage if applicable
 5. Conclusion or follow-up question to ensure user satisfaction
+Be as friendly and conversationally concise and to the point but also informative as possible in your response.
+use emojis to make the response more engaging and human-like
 
+#####BEGIN_USER_input_TO_YOU#####
+User Input: "{user_input}"
+#####END_USER_input_TO_YOU#####
+
+#####BEGIN_YOU_TO_USER#####
 Begin your response now:
 """
 

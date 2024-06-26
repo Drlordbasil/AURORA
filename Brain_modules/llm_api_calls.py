@@ -31,7 +31,7 @@ class LLM_API_Calls:
         self.chat_history = []
         self.max_tokens = 4000
         self.encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-        self.web_research_tool = WebResearchTool(self.chat, max_tokens=self.max_tokens)
+        self.web_research_tool = WebResearchTool()
         self.tokens_used = 0
         self.start_time = time.time()
         self.available_functions = {
@@ -132,9 +132,15 @@ class LLM_API_Calls:
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
     def chat(self, prompt):
         self.reset_token_usage()
-        messages = [
-            {"role": "system", "content": f"You are {FinalAgentPersona.name}. {FinalAgentPersona.description} who has access to function calling and here is which ones you can use and how to get creative with them to match or meet the users requests with a tool or function call if needed, if not dont worry about it."},
 
+        messages = [
+            {"role": "system", "content": f"""
+             #####CHAT HISTORY START####You are {FinalAgentPersona.name}. {FinalAgentPersona.description} 
+             # who has access to function calling and here is which ones you can use and how to get creative 
+             # {self.chat_history[-1]['content'] if self.chat_history else ''}
+             #####CHAT HISTORY END####
+             """},
+            {"role": "assistant", "content": self.chat_history[-1]['content'] if self.chat_history else "Hello! How can I help you today? I have various tool capabilites to assist you."},
             {"role": "user", "content": prompt},
         ]
 
@@ -198,7 +204,7 @@ class LLM_API_Calls:
                 second_response_content = second_response.choices[0].message.content if isinstance(self.client, (OpenAI, Groq)) else second_response['message']['content']
                 self.chat_history.append({"role": "assistant", "content": second_response_content})
                 self.update_token_usage(messages, second_response_content)
-
+                
                 return second_response_content
             else:
                 return response_message.content
