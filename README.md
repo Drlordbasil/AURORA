@@ -8,7 +8,11 @@
 [![Contributors](https://img.shields.io/github/contributors/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/graphs/contributors)
 
 ## Overview
-![Uploading image.png…]()
+
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/54e72cb3-68a4-4142-8d2a-989aae0333b4)
+
+
+
 
 ![image](https://github.com/Drlordbasil/AURORA/assets/126736516/d3e851c2-ebbc-4f27-86cf-93e67d060e66)
 
