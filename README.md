@@ -6,8 +6,10 @@
 [![GitHub forks](https://img.shields.io/github/forks/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/network)
 [![Issues](https://img.shields.io/github/issues/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/issues)
 [![Contributors](https://img.shields.io/github/contributors/Drlordbasil/AURORA)](https://github.com/Drlordbasil/AURORA/graphs/contributors)
-![alt text](image.png)
+
 ## Overview
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/09d80157-5d50-4ba9-a15b-4b61fffbff3e)
+![image](https://github.com/Drlordbasil/AURORA/assets/126736516/d3e851c2-ebbc-4f27-86cf-93e67d060e66)
 
 **AURORA** is a smart AI chatbot that mimics the brain's different functions to provide insightful and context-aware interactions. It's perfect for research, coding help, sentiment analysis, and more!
 
