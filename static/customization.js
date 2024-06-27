@@ -10,7 +10,8 @@ const elements = {
     themeToggle: document.getElementById('theme-toggle'),
     infoPanel: document.querySelector('.info-panel'),
     infoToggle: document.getElementById('info-toggle'),
-    artifactDisplay: document.getElementById('artifact-display')
+    artifactDisplay: document.getElementById('artifact-display'),
+    apiProviderSelect: document.getElementById('api-provider')
 };
 
 // State
@@ -18,7 +19,8 @@ const state = {
     isRecording: false,
     isDarkTheme: true,
     activeLobes: new Set(),
-    eventSource: null
+    eventSource: null,
+    currentApiProvider: 'ollama' // Default API provider
 };
 
 // Utility Functions
@@ -163,7 +165,7 @@ const api = {
             const data = await utils.fetchJSON('/send_message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ message, apiProvider: state.currentApiProvider })
             });
             
             ui.hideTypingIndicator();
@@ -191,8 +193,13 @@ const api = {
     async toggleTTS() {
         try {
             const data = await utils.fetchJSON('/toggle_tts', { method: 'POST' });
-            ui.updateStatus(data.status);
-            elements.ttsToggleButton.classList.toggle('active');
+            if (data.status === 'Error') {
+                console.error('Error toggling TTS:', data.error);
+                ui.updateStatus('Error toggling TTS');
+            } else {
+                ui.updateStatus(data.status);
+                elements.ttsToggleButton.classList.toggle('active');
+            }
         } catch (error) {
             console.error('Error:', error);
             ui.updateStatus('Error toggling TTS');
@@ -261,6 +268,25 @@ const api = {
             console.error('Error in progress updates:', error);
             state.eventSource.close();
         };
+    },
+
+    async updateApiProvider(provider) {
+        try {
+            const data = await utils.fetchJSON('/update_api_provider', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider })
+            });
+            if (data.status === 'success') {
+                state.currentApiProvider = provider;
+                ui.updateStatus(`API Provider set to ${provider}`);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Error updating API provider:', error);
+            ui.updateStatus('Error updating API provider');
+        }
     }
 };
 
@@ -296,6 +322,11 @@ function setupEventListeners() {
 
     elements.infoToggle.addEventListener('click', () => {
         elements.infoPanel.classList.toggle('show');
+    });
+
+    elements.apiProviderSelect.addEventListener('change', (event) => {
+        const selectedProvider = event.target.value;
+        api.updateApiProvider(selectedProvider);
     });
 }
 

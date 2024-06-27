@@ -12,9 +12,10 @@ from Brain_modules.image_vision import ImageVision
 from Brain_modules.tool_call_functions.web_research import WebResearchTool
 from Brain_modules.define_tools import tools
 from requests.exceptions import RequestException
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from typing import Tuple, List, Any, Union, Dict
 
-MAX_TOKENS_PER_MINUTE = 5500  # Reduced from 6000 to provide a buffer
+MAX_TOKENS_PER_MINUTE = 5500
 MAX_RETRIES = 3
 BACKOFF_FACTOR = 2
 from Brain_modules.final_agent_persona import FinalAgentPersona
@@ -26,6 +27,7 @@ class LLM_API_Calls:
     def __init__(self):
         self.client = None
         self.model = None
+        self.current_api_provider = "ollama"
         self.setup_client()
         self.image_vision = ImageVision()
         self.chat_history = []
@@ -37,7 +39,8 @@ class LLM_API_Calls:
         self.available_functions = {
             "run_local_command": self.run_local_command,
             "web_research": self.web_research_tool.web_research,
-            "do_nothing": self.do_nothing
+            "do_nothing": self.do_nothing,
+            "analyze_image": self.analyze_image
         }
         self.interaction_count = 0
         self.max_interactions = 10
@@ -52,19 +55,25 @@ class LLM_API_Calls:
             raise
 
     def choose_API_provider(self):
-        llm = os.environ.get("LLM_PROVIDER", "Groq")
-        if llm == "OpenAI":
+        if self.current_api_provider == "OpenAI":
             api_key = os.environ.get("OPENAI_API_KEY") or input("Enter your OpenAI API key: ").strip()
-            model = os.environ.get("OPENAI_MODEL", "gpt-4-turbo-preview")
+            model = os.environ.get("OPENAI_MODEL", "gpt-4-turbo")
             client = OpenAI(api_key=api_key)
-        elif llm == "ollama":
+        elif self.current_api_provider == "ollama":
+            api_key = "ollama"
             model = os.environ.get("OLLAMA_MODEL", "llama3:instruct")
-            client = ollama
-        else:  # Default to Groq
+            client = OpenAI(base_url="http://localhost:11434/v1", api_key=api_key)
+        elif self.current_api_provider == "Groq":
             api_key = os.environ.get("GROQ_API_KEY") or input("Enter your Groq API key: ").strip()
             model = os.environ.get("GROQ_MODEL", "llama3-70b-8192")
-            client = Groq(api_key=api_key)
+            client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
+        else:
+            raise ValueError("Unsupported LLM Provider")
         return client, model
+
+    def update_api_provider(self, provider):
+        self.current_api_provider = provider
+        self.setup_client()
 
     def count_tokens(self, text):
         return len(self.encoding.encode(str(text)))
@@ -128,21 +137,33 @@ class LLM_API_Calls:
             progress_callback("Executing do nothing tool")
         return {"result": "Nothing was done", "datetime": get_current_datetime()}
 
+    def chat(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[Union[str, Dict[str, str]], List[Any]]:
+        try:
+            response, tool_calls = self._chat_with_retry(prompt, system_message, tools, progress_callback)
+            if not response:
+                response = "I apologize, but I couldn't generate a response. How else can I assist you?"
+            return response, tool_calls
+        except RetryError as e:
+            error_message = f"Failed to get a response after {MAX_RETRIES} attempts: {str(e)}"
+            if progress_callback:
+                progress_callback(error_message)
+            return error_message, []
+        except Exception as e:
+            error_message = f"Unexpected error in chat: {str(e)}"
+            if progress_callback:
+                progress_callback(error_message)
+            return error_message, []
+
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def chat(self, prompt, progress_callback=None):
+    def _chat_with_retry(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[Union[str, Dict[str, str]], List[Any]]:
         self.reset_token_usage()
 
         if progress_callback:
             progress_callback("Preparing chat messages")
 
         messages = [
-            {"role": "system", "content": f"""
-             #####CHAT HISTORY START####You are {FinalAgentPersona.name}. {FinalAgentPersona.description} 
-             # who has access to function calling and here is which ones you can use and how to get creative 
-             # {self.chat_history[-1]['content'] if self.chat_history else ''}
-             #####CHAT HISTORY END####
-             """},
-            {"role": "assistant", "content": self.chat_history[-1]['content'] if self.chat_history else "Hello! How can I help you today? I have various tool capabilites to assist you."},
+            {"role": "system", "content": system_message},
+            {"role": "assistant", "content": self.chat_history[-1]['content'] if self.chat_history else "Hello! How can I help you today? I have various tool capabilities to assist you."},
             {"role": "user", "content": prompt},
         ]
 
@@ -162,77 +183,33 @@ class LLM_API_Calls:
                 )
                 self.update_rate_limit(getattr(response, 'headers', {}))
                 response_message = response.choices[0].message
-                tool_calls = response_message.tool_calls
+                tool_calls = response_message.tool_calls or []
 
-            elif self.client == ollama:
-                response = self.client.chat(
+            elif self.current_api_provider == "ollama":
+                response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     tools=tools,
                     tool_choice="auto"
                 )
-                response_message = response['message']
-                tool_calls = response_message.get('tool_calls', [])
+                response_message = response.choices[0].message
+                tool_calls = response_message.tool_calls or []
 
             if progress_callback:
                 progress_callback("Received response from language model")
 
-            self.chat_history.append({"role": "assistant", "content": response_message.content})
-            self.update_token_usage(messages, response_message.content)
+            content = response_message.content or "I apologize, but I couldn't generate a response. How else can I assist you?"
+            self.chat_history.append({"role": "assistant", "content": content})
+            self.update_token_usage(messages, content)
 
-            if tool_calls:
-                if progress_callback:
-                    progress_callback("Processing tool calls")
-                for tool_call in tool_calls:
-                    function_name = tool_call.function.name
-                    function_to_call = self.available_functions.get(function_name)
-                    if function_to_call is None:
-                        raise ValueError(f"Unknown function: {function_name}")
-                    function_args = json.loads(tool_call.function.arguments)
-                    if progress_callback:
-                        progress_callback(f"Executing function: {function_name}")
-                    function_response = function_to_call(**function_args, progress_callback=progress_callback)
-                    
-                    tool_response = {
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": json.dumps(function_response)
-                    }
-                    self.chat_history.append(tool_response)
-                    self.update_token_usage(messages, json.dumps(function_response))
-
-                messages.extend(self.chat_history[-2:])  # Add assistant's response and tool response
-
-                if progress_callback:
-                    progress_callback("Generating final response based on tool results")
-                second_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=self.max_tokens
-                ) if isinstance(self.client, (OpenAI, Groq)) else self.client.chat(
-                    model=self.model,
-                    messages=messages
-                )
-
-                second_response_content = second_response.choices[0].message.content if isinstance(self.client, (OpenAI, Groq)) else second_response['message']['content']
-                self.chat_history.append({"role": "assistant", "content": second_response_content})
-                self.update_token_usage(messages, second_response_content)
-                
-                if progress_callback:
-                    progress_callback("Final response generated")
-                return second_response_content
-            else:
-                if progress_callback:
-                    progress_callback("Response generated without tool use")
-                return response_message.content
+            return content, tool_calls
 
         except Exception as e:
             error_message = f"Error in chat: {str(e)}"
             if progress_callback:
                 progress_callback(f"Error occurred: {error_message}")
             print(error_message)
-            return {"error": error_message, "datetime": get_current_datetime()}
+            raise
 
     def update_token_usage(self, messages, response):
         tokens_used = sum(self.count_tokens(msg["content"]) for msg in messages) + self.count_tokens(response)
@@ -267,3 +244,5 @@ class LLM_API_Calls:
                 self.rate_limit_reset = float(reset)
             except ValueError:
                 self.rate_limit_reset = time.time() + 60
+
+llm_api_calls = LLM_API_Calls()

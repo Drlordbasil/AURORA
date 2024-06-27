@@ -27,3 +27,7 @@ Brain_modules/__pycache__/brain.cpython-312.pyc
 Brain_modules/__pycache__/llm_api_calls.cpython-312.pyc
 Brain_modules/lobes/__pycache__/frontal_lobe.cpython-312.pyc
 Brain_modules/tool_call_functions/__pycache__/web_research.cpython-312.pyc
+Brain_modules/__pycache__/llm_api_calls.cpython-312.pyc
+Brain_modules/__pycache__/brain.cpython-312.pyc
+Brain_modules/__pycache__/llm_api_calls.cpython-312.pyc
+test.py

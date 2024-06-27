@@ -17,6 +17,24 @@
                 <button id="clear-button" title="Clear Chat"><i class="fas fa-trash"></i></button>
                 <button id="tts-toggle" title="Toggle Text-to-Speech"><i class="fas fa-volume-up"></i></button>
                 <button id="record-button" title="Voice Input"><i class="fas fa-microphone"></i></button>
+                <select id="api-provider" title="Select API Provider" onchange="setModel(event)">
+                    <option value="Groq" selected>Groq</option>
+                    <option value="OpenAI">OpenAI</option>
+                    <option value="ollama">Ollama</option>
+                </select>
+                
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        setModel({ target: document.getElementById('api-provider') });
+                    });
+
+                    function setModel(event) {
+                        const selectedProvider = event.target.value;
+                        // Implement the logic to set the model based on the selected provider
+                        console.log('Model set to:', selectedProvider);
+                        // You can add more code here to actually change the model in your application
+                    }
+                </script>
             </div>
         </div>
         <div class="info-panel">

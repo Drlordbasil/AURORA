@@ -1,110 +1,140 @@
 import json
 import time
-from typing import Dict, Any
-
-from Brain_modules.llm_api_calls import LLM_API_Calls, tools
+from typing import Dict, Any, List, Tuple
+from Brain_modules.llm_api_calls import llm_api_calls, tools
 from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrieve_relevant_memory
 from Brain_modules.sentiment_analysis import analyze_sentiment
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.lobes_processing import LobesProcessing
 from utilities import setup_embedding_collection
+from Brain_modules.final_agent_persona import FinalAgentPersona
 
 class Brain:
-    def __init__(self):
+    def __init__(self, progress_callback):
+        self.progress_callback = progress_callback
         self._initialize()
 
     def _initialize(self):
-        print(f"Initializing Brain at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.progress_callback(f"Initializing Brain at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         self.tts_enabled = True
         self.collection, self.collection_size = setup_embedding_collection()
         self.image_vision = ImageVision()
-        self.api_calls = LLM_API_Calls()
-        self.client = self.api_calls.client
         self.lobes_processing = LobesProcessing(self.image_vision)
         self.embeddings_model = "mxbai-embed-large"
         self.chat_history = []
         self.last_response = ""
-        print(f"Brain initialization completed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.progress_callback(f"Brain initialization completed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     def toggle_tts(self):
-        self.tts_enabled = not self.tts_enabled
-        return "enabled" if self.tts_enabled else "disabled"
-
-    def process_input(self, user_input: str, progress_callback: callable) -> str:
         try:
-            progress_callback(f"Initiating cognitive processes...")
-            
-            initial_response = self._get_initial_response(user_input, progress_callback)
-            progress_callback(f"1st Primary language model response received. Processing lobes... {initial_response}")
-            lobe_responses = self._process_lobes(user_input, initial_response, progress_callback)
-            progress_callback(f"Lobe processing complete.{lobe_responses}")
+            self.tts_enabled = not self.tts_enabled
+            status = "enabled" if self.tts_enabled else "disabled"
+            self.progress_callback(f"TTS toggled to {status}")
+            return status
+        except Exception as e:
+            error_message = f"Error toggling TTS: {str(e)}"
+            self.progress_callback(error_message)
+            raise
 
-            memory_context = self._integrate_memory(user_input, initial_response, lobe_responses, progress_callback)
-            progress_callback(f"Memory integration complete.")
+    def process_input(self, user_input: str) -> str:
+        try:
+            self.progress_callback("Initiating cognitive processes...")
+            
+            initial_response, tool_calls = self._get_initial_response(user_input)
+            self.progress_callback(f"Primary language model response received. Processing lobes... {initial_response}")
+            
+            if tool_calls:
+                tool_responses = self._process_tool_calls(tool_calls)
+                self.progress_callback(f"Tool calls processed: {tool_responses}")
+                initial_response += f"\nTool responses: {json.dumps(tool_responses)}"
+
+            lobe_responses = self._process_lobes(user_input, initial_response)
+            self.progress_callback(f"Lobe processing complete. {lobe_responses}")
+
+            memory_context = self._integrate_memory(user_input, initial_response, lobe_responses)
+            self.progress_callback("Memory integration complete.")
             sentiment = analyze_sentiment(user_input)
             
             final_response = self._generate_final_response(
-                user_input, initial_response, lobe_responses, memory_context, sentiment, progress_callback
+                user_input, initial_response, lobe_responses, memory_context, sentiment
             )
             
-            progress_callback("Cognitive processing complete. Formulating response...")
+            self.progress_callback("Cognitive processing complete. Formulating response...")
             return final_response
         except Exception as e:
             error_message = f"Cognitive error encountered: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
-            progress_callback(error_message)
+            self.progress_callback(error_message)
             return error_message
 
-    def _get_initial_response(self, user_input: str, progress_callback: callable) -> str:
-        progress_callback("Engaging primary language model...")
+    def _get_initial_response(self, user_input: str) -> Tuple[str, List[Any]]:
+        self.progress_callback("Engaging primary language model...")
         initial_prompt = self._construct_initial_prompt(user_input)
-        return self.api_calls.chat(initial_prompt, progress_callback=progress_callback)
+        system_message = self._construct_system_message()
+        response, tool_calls = llm_api_calls.chat(initial_prompt, system_message, tools, progress_callback=self.progress_callback)
+        return response, tool_calls
 
-    def _process_lobes(self, user_input: str, initial_response: str, progress_callback: callable) -> Dict[str, Any]:
+    def _process_tool_calls(self, tool_calls):
+        tool_responses = {}
+        for tool_call in tool_calls:
+            function_name = tool_call.function.name
+            function_to_call = llm_api_calls.available_functions.get(function_name)
+            if function_to_call:
+                function_args = json.loads(tool_call.function.arguments)
+                function_response = function_to_call(**function_args, progress_callback=self.progress_callback)
+                tool_responses[function_name] = function_response
+        return tool_responses
+
+    def _process_lobes(self, user_input: str, initial_response: str) -> Dict[str, Any]:
         lobe_responses = {}
         for lobe_name, lobe in self.lobes_processing.lobes.items():
-            progress_callback(f"Activating {lobe_name} neural pathway...")
+            self.progress_callback(f"Activating {lobe_name} neural pathway...")
             combined_input = f"{user_input}\n{initial_response if initial_response else ''}"
-
             response = lobe.process(combined_input)
             lobe_responses[lobe_name] = response
         return lobe_responses
 
-    def _integrate_memory(self, user_input: str, initial_response: str, lobe_responses: Dict[str, Any], progress_callback: callable) -> str:
-        progress_callback("Integrating memory and context...")
+    def _integrate_memory(self, user_input: str, initial_response: str, lobe_responses: Dict[str, Any]) -> str:
+        self.progress_callback("Integrating memory and context...")
         combined_input = f"{user_input}\n{initial_response}\n{json.dumps(lobe_responses)}"
         embedding = generate_embedding(combined_input, self.embeddings_model, self.collection, self.collection_size)
         add_to_memory(combined_input, self.embeddings_model, self.collection, self.collection_size)
         relevant_memory = retrieve_relevant_memory(embedding, self.collection)
-        progress_callback("Memory integration complete.")
+        self.progress_callback("Memory integration complete.")
         return " ".join(relevant_memory)
 
     def _generate_final_response(self, user_input: str, initial_response: str, 
-                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float, progress_callback: callable) -> str:
-        progress_callback("Generating final response...")
+                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float) -> str:
+        self.progress_callback("Generating final response...")
         context = self._construct_final_prompt(user_input, initial_response, lobe_responses, memory_context, sentiment)
-        final_response = self.api_calls.chat(context, progress_callback=progress_callback)
+        system_message = self._construct_system_message()
+        final_response, _ = llm_api_calls.chat(context, system_message, tools, progress_callback=self.progress_callback)
+        if not final_response:
+            final_response = "I apologize, but I couldn't generate a response. How else can I assist you?"
         self.last_response = final_response
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": final_response})
-        progress_callback("Final response generated.")
+        self.progress_callback("Final response generated.")
         return final_response
+
+    def _construct_system_message(self) -> str:
+        return f"""You are {FinalAgentPersona.name}. {FinalAgentPersona.description}
+        who has access to function calling and here is which ones you can use and how to get creative"""
 
     def _construct_initial_prompt(self, user_input: str) -> str:
         return f"""
-        
-        [Your persona]As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
+        As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
         analyze the following context and user input to generate an initial response to the user_input section with a tool use
         as a function calling LLM the tool use function with the user_input as the argument. You directly send your tool calls to yourself in the next response from yourself.
-        [/Your persona]
-        ###TOOLS###
-        tools: {tools}
-        ###END TOOLS###
 
-        #######user_input#######
         User Input: "{user_input}"
-        ######## end_user_input#######
 
-        your tool call:(if none needed or just convo use do_nothing)
+        Your task is to analyze this input and determine if any tool use is necessary. If needed, use the appropriate tool. If no tool is needed or if it's just a normal conversation, use the 'do_nothing' tool.
+
+        Respond with your analysis and any tool calls you deem necessary.
+        tool list: {json.dumps(tools, indent=2)}
+
+
+your tool calls:
         """
 
     def _construct_final_prompt(self, user_input: str, initial_response: str, 
@@ -113,7 +143,7 @@ class Brain:
 
                 User Input: "{user_input}"
 
-                tool use results: {initial_response}
+                Initial Response and Tool Use Results: {initial_response}
 
                 Lobe Processing Results:
                 {json.dumps(lobe_responses, indent=2)}
@@ -137,12 +167,12 @@ class Brain:
                 2. Main response addressing the core issue or question
                 3. Conclusion or follow-up question to ensure user satisfaction
                 Be as friendly and conversationally concise and to the point but also informative as possible in your response.
-                use emojis to make the response more engaging and human-like.
-                if simple greetings or normal convo, be as conversationally pleasing as possible as the user would expect.
-                You have too many thoughts, but you can respond as an adult named Aurora.
+                Use emojis to make the response more engaging and human-like.
+                If it's a simple greeting or normal conversation, be as conversationally pleasing as possible as the user would expect.
+                You have many thoughts, but you can respond as an adult named Aurora.
 
                 Your response:
-"""
+                """
 
     def get_detailed_info(self):
         try:

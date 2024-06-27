@@ -9,6 +9,8 @@ from listen_lobe import AuroraRecorder
 from speaker import text_to_speech
 from queue import Queue
 import json
+from Brain_modules.llm_api_calls import llm_api_calls, tools
+from Brain_modules.final_agent_persona import FinalAgentPersona
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -16,9 +18,9 @@ app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 
 # Initialize components
-brain = Brain()
-aurora_recorder = AuroraRecorder()
 progress_queue = Queue()
+brain = Brain(progress_queue.put)
+aurora_recorder = AuroraRecorder()
 
 def update_progress(message):
     """Update the progress queue with a new message."""
@@ -43,7 +45,7 @@ def process_input(input_text):
     update_progress(f"Received input: {input_text}")
 
     try:
-        response = brain.process_input(input_text, update_progress)
+        response = brain.process_input(input_text)
         update_progress("Response generated")
         audio_file = None
         if brain.tts_enabled:
@@ -73,6 +75,16 @@ def index():
     """Render the main index page."""
     return render_template('index.html')
 
+@app.route('/update_api_provider', methods=['POST'])
+def update_api_provider():
+    data = request.json
+    provider = data.get('provider')
+    if provider:
+        llm_api_calls.update_api_provider(provider)
+        return jsonify({"status": "success", "message": f"API provider updated to {provider}"})
+    else:
+        return jsonify({"status": "error", "message": "No provider specified"}), 400
+
 @app.route('/send_message', methods=['POST'])
 def send_message():
     """Handle sending a message."""
@@ -92,8 +104,14 @@ def send_message():
 @app.route('/toggle_tts', methods=['POST'])
 def toggle_tts():
     """Toggle the Text-to-Speech (TTS) functionality."""
-    status = brain.toggle_tts()
-    return jsonify({'status': f'Text-to-Speech {status}'})
+    try:
+        status = brain.toggle_tts()
+        logging.debug(f"TTS toggled to {status}")
+        return jsonify({'status': f'Text-to-Speech {status}'})
+    except Exception as e:
+        error_message = f"Error toggling TTS: {str(e)}"
+        logging.error(error_message)
+        return jsonify({'status': 'Error', 'error': error_message})
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
@@ -147,10 +165,15 @@ def chat_history():
     """Return the chat history as a JSON response."""
     return jsonify(brain.chat_history)
 
-def open_browser():
-    """Open the web browser to the application URL."""
-    webbrowser.open_new('http://127.0.0.1:5000/')
+@app.route('/set_env', methods=['POST'])
+def set_env():
+    data = request.json
+    variable = data.get('variable')
+    value = data.get('value')
+    if variable and value:
+        os.environ[variable] = value
+        return jsonify({'status': 'success'})
+    return jsonify({'status': 'error'}), 400
 
 if __name__ == '__main__':
-    threading.Timer(1.25, open_browser).start()
     app.run(host='0.0.0.0', port=5000, threaded=True, debug=True)
