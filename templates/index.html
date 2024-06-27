@@ -13,54 +13,51 @@
             <div class="chat-display" id="chat-display"></div>
             <div class="input-area">
                 <input type="text" id="prompt-input" placeholder="Ask Aurora...">
-                <button id="send-button"><i class="fas fa-paper-plane"></i></button>
-                <button id="clear-button"><i class="fas fa-trash"></i></button>
-                <button id="tts-toggle"><i class="fas fa-volume-up"></i></button>
-                <button id="record-button"><i class="fas fa-microphone"></i></button>
+                <button id="send-button" title="Send"><i class="fas fa-paper-plane"></i></button>
+                <button id="clear-button" title="Clear Chat"><i class="fas fa-trash"></i></button>
+                <button id="tts-toggle" title="Toggle Text-to-Speech"><i class="fas fa-volume-up"></i></button>
+                <button id="record-button" title="Voice Input"><i class="fas fa-microphone"></i></button>
             </div>
         </div>
         <div class="info-panel">
-            <img id="logo" src="{{ url_for('static', filename='aurora.png') }}" alt="Aurora Logo">
-            <div id="brain-visualization">
-                <svg viewBox="0 0 100 100">
-                    <defs>
-                        <filter id="glow">
-                            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-                            <feMerge>
-                                <feMergeNode in="coloredBlur"/>
-                                <feMergeNode in="SourceGraphic"/>
-                            </feMerge>
-                        </filter>
-                    </defs>
-                    <path id="frontal-lobe" d="M20,20 Q50,0 80,20" />
-                    <path id="parietal-lobe" d="M20,20 Q50,40 80,20" />
-                    <path id="temporal-lobe" d="M20,60 Q50,80 80,60" />
-                    <path id="occipital-lobe" d="M20,60 Q50,100 80,60" />
-                    <path id="limbic-lobe" d="M40,40 Q50,50 60,40" />
-                    <path id="cerebellar-lobe" d="M30,80 Q50,90 70,80" />
-                    <path id="brocas-area" d="M30,30 Q35,35 40,30" />
-                    <path id="wernickes-area" d="M60,30 Q65,35 70,30" />
-                    <path id="insular-cortex" d="M45,45 Q50,50 55,45" />
-                    <path id="association_areas-lobe" d="M35,35 Q50,50 65,35" />
-                </svg>
+            <div class="info-panel-content">
+                <img id="logo" src="{{ url_for('static', filename='aurora.png') }}" alt="Aurora Logo">
+                <div id="brain-visualization">
+                    <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet">
+                        <defs>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        <path id="brain-outline" d="M10,30 Q25,5 50,5 T90,30 Q75,55 50,55 T10,30" />
+                        <path id="frontal-lobe" d="M25,15 Q37.5,5 50,5 T75,15" />
+                        <path id="parietal-lobe" d="M25,15 Q37.5,25 50,25 T75,15" />
+                        <path id="temporal-lobe" d="M10,30 Q25,40 50,40 T90,30" />
+                        <path id="occipital-lobe" d="M25,45 Q37.5,55 50,55 T75,45" />
+                        <path id="cerebellum" d="M30,50 Q50,60 70,50" />
+                    </svg>
+                </div>
+                <div class="info-text">
+                    <h2>AURORA</h2>
+                    <p>Artificial Unified Responsive Optimized Reasoning Agent</p>
+                    <ul class="feature-list">
+                        <li><i class="fas fa-terminal"></i> Execute local commands</li>
+                        <li><i class="fas fa-search"></i> Perform web research</li>
+                        <li><i class="fas fa-chart-bar"></i> Analyze sentiment</li>
+                        <li><i class="fas fa-microphone"></i> Voice recognition</li>
+                    </ul>
+                </div>
+                <div id="status-label">Ready</div>
+                <div id="artifact-display"></div>
             </div>
-            <div class="info-text">
-                <h2>AURORA</h2>
-                <p>Artificial Unified Responsive Optimized Reasoning Agent</p>
-                <ul>
-                    <li><i class="fas fa-terminal"></i> Execute local commands</li>
-                    <li><i class="fas fa-search"></i> Perform web research</li>
-                    <li><i class="fas fa-image"></i> Analyze images</li>
-                    <li><i class="fas fa-file-pdf"></i> Extract text from PDFs</li>
-                    <li><i class="fas fa-chart-bar"></i> Analyze sentiment</li>
-                    <li><i class="fas fa-microphone"></i> Voice recognition</li>
-                </ul>
-            </div>
-            <div id="status-label">Ready</div>
         </div>
     </div>
-    <button id="theme-toggle"><i class="fas fa-adjust"></i></button>
-    <button class="info-toggle"><i class="fas fa-info-circle"></i></button>
+    <button id="theme-toggle" title="Toggle Theme"><i class="fas fa-adjust"></i></button>
+    <button id="info-toggle" class="info-toggle" title="Toggle Info Panel"><i class="fas fa-info-circle"></i></button>
 
     <script src="{{ url_for('static', filename='customization.js') }}"></script>
     <audio id="audio-player" controls style="display:none;"></audio>

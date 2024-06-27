@@ -2,6 +2,7 @@ import os
 import threading
 import time
 import webbrowser
+import logging
 from flask import Flask, render_template, request, jsonify, g, send_file, Response
 from Brain_modules.brain import Brain
 from listen_lobe import AuroraRecorder
@@ -9,7 +10,10 @@ from speaker import text_to_speech
 from queue import Queue
 import json
 
+logging.basicConfig(level=logging.DEBUG)
+
 app = Flask(__name__)
+app.config['PROPAGATE_EXCEPTIONS'] = True
 
 # Initialize components
 brain = Brain()
@@ -18,6 +22,7 @@ progress_queue = Queue()
 
 def update_progress(message):
     """Update the progress queue with a new message."""
+    logging.debug(f"Progress update: {message}")
     progress_queue.put(message)
 
 def process_input(input_text):
@@ -60,7 +65,7 @@ def before_request():
 def after_request(response):
     """Log the time taken to process the request."""
     diff = time.time() - g.start_time
-    print(f"Request processed in {diff:.2f} seconds")
+    logging.debug(f"Request processed in {diff:.2f} seconds")
     return response
 
 @app.route('/')
@@ -133,6 +138,7 @@ def progress_updates():
     def generate():
         while True:
             message = progress_queue.get()
+            logging.debug(f"Sending SSE: {message}")
             yield f"data: {json.dumps({'message': message})}\n\n"
     return Response(generate(), mimetype='text/event-stream')
 
@@ -147,4 +153,4 @@ def open_browser():
 
 if __name__ == '__main__':
     threading.Timer(1.25, open_browser).start()
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=5000, threaded=True, debug=True)

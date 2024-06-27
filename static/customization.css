@@ -5,6 +5,9 @@
     --highlight-color: #0f3460;
     --aurora-color: #00ff9d;
     --shadow-color: rgba(0, 0, 0, 0.3);
+    --font-size-base: 16px;
+    --font-size-small: 14px;
+    --font-size-smaller: 12px;
 }
 
 body, html {
@@ -15,49 +18,54 @@ body, html {
     color: var(--text-color);
     height: 100vh;
     overflow: hidden;
+    font-size: var(--font-size-base);
 }
 
 .container {
     display: flex;
-    height: 100%;
-    box-shadow: 0 0 20px var(--shadow-color);
+    height: 100vh;
+    width: 100vw;
 }
 
 .chat-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 1rem;
     background-color: var(--accent-color);
     box-shadow: inset 0 0 10px var(--shadow-color);
 }
 
 .info-panel {
     width: 300px;
-    padding: 20px;
     background-color: var(--highlight-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: -5px 0 15px var(--shadow-color);
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    overflow-y: auto;
-    box-shadow: -5px 0 15px var(--shadow-color);
+}
+
+.info-panel-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .chat-display {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 15px;
+    padding: 1rem;
     background-color: var(--bg-color);
     border-radius: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 1rem;
     box-shadow: inset 0 0 10px var(--shadow-color);
 }
 
 .message {
-    margin-bottom: 15px;
-    padding: 12px 18px;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
     border-radius: 20px;
     max-width: 80%;
     animation: fadeIn 0.3s ease-in;
@@ -87,8 +95,8 @@ body, html {
 
 .input-area {
     display: flex;
-    gap: 10px;
-    padding: 10px;
+    gap: 0.5rem;
+    padding: 0.5rem;
     background-color: var(--accent-color);
     border-radius: 25px;
     box-shadow: 0 4px 6px var(--shadow-color);
@@ -96,17 +104,17 @@ body, html {
 
 #prompt-input {
     flex-grow: 1;
-    padding: 12px 15px;
+    padding: 0.75rem 1rem;
     border: none;
     border-radius: 20px;
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-size: 16px;
+    font-size: var(--font-size-base);
     box-shadow: inset 0 2px 4px var(--shadow-color);
 }
 
 button {
-    padding: 12px 22px;
+    padding: 0.75rem 1rem;
     border: none;
     border-radius: 20px;
     background-color: var(--highlight-color);
@@ -127,44 +135,128 @@ button:hover {
 }
 
 #logo {
-    width: 150px;
-    height: 150px;
-    margin-bottom: 20px;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
     filter: drop-shadow(0 4px 6px var(--shadow-color));
+    align-self: center;
 }
 
 .info-text {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 1rem;
+    font-size: var(--font-size-small);
+}
+
+.info-text h2 {
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+}
+
+.info-text p {
+    margin-bottom: 0.5rem;
+}
+
+.feature-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.feature-list li {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-smaller);
+}
+
+.feature-list li i {
+    margin-right: 0.5rem;
+    color: var(--aurora-color);
 }
 
 #status-label {
     font-weight: bold;
     color: var(--aurora-color);
     text-shadow: 0 2px 4px var(--shadow-color);
+    margin-top: auto;
+    text-align: center;
 }
 
-#theme-toggle {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+#brain-visualization {
+    width: 100%;
+    height: 60px;
+    margin: 10px 0;
+    filter: drop-shadow(0 2px 3px var(--shadow-color));
+}
+
+#brain-visualization svg {
+    width: 100%;
+    height: 100%;
+}
+
+#brain-visualization path {
+    fill: none;
+    stroke: var(--aurora-color);
+    stroke-width: 1.5;
+    transition: all 0.3s ease;
+}
+
+#brain-outline {
+    stroke: var(--text-color);
+    stroke-width: 1;
+}
+
+#theme-toggle, #info-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    background-color: var(--highlight-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#info-toggle {
+    right: 4rem;
+}
+
+#theme-toggle:hover, #info-toggle:hover {
+    background-color: var(--aurora-color);
+    color: var(--bg-color);
+}
+
+#artifact-display {
+    margin-top: 1rem;
+    border: 1px solid var(--aurora-color);
+    border-radius: 10px;
+    padding: 1rem;
+    background-color: rgba(0, 255, 157, 0.1);
 }
 
 .typing-indicator {
     display: inline-block;
-    width: 20px;
-    height: 10px;
+    margin-left: 5px;
 }
 
 .typing-indicator span {
     display: inline-block;
-    width: 5px;
-    height: 5px;
+    width: 8px;
+    height: 8px;
     background-color: var(--aurora-color);
     border-radius: 50%;
-    animation: typing 1s infinite;
     margin-right: 3px;
-    box-shadow: 0 0 5px var(--aurora-color);
+    animation: typing 1s infinite;
 }
 
 .typing-indicator span:nth-child(2) {
@@ -184,31 +276,11 @@ button:hover {
 .code-block {
     background-color: #2a2a4a;
     border-radius: 5px;
-    padding: 12px;
+    padding: 1rem;
+    margin: 0.5rem 0;
     font-family: 'Courier New', Courier, monospace;
     white-space: pre-wrap;
     word-wrap: break-word;
-    box-shadow: inset 0 2px 4px var(--shadow-color);
-}
-
-#brain-visualization {
-    width: 100%;
-    height: 200px;
-    margin: 20px 0;
-    filter: drop-shadow(0 4px 6px var(--shadow-color));
-}
-
-#brain-visualization path {
-    stroke: #ffffff;
-    stroke-width: 0.5;
-    transition: all 0.3s ease;
-}
-
-.info-toggle {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
 }
 
 @media (max-width: 768px) {
@@ -220,14 +292,54 @@ button:hover {
         width: 100%;
         height: 50%;
         transform: translateY(100%);
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
     }
 
     .info-panel.show {
         transform: translateY(0);
     }
 
+    .feature-list {
+        grid-template-columns: 1fr;
+    }
+
     #brain-visualization {
-        width: 150px;
-        height: 150px;
+        height: 40px;
+    }
+
+    #logo {
+        width: 60px;
+        height: 60px;
+    }
+}
+
+@media (max-height: 600px) {
+    .info-panel-content {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    #logo, #brain-visualization {
+        flex: 0 0 auto;
+        margin: 0.5rem;
+    }
+
+    .info-text {
+        flex: 1 1 auto;
+        text-align: left;
+    }
+
+    .feature-list {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    #status-label {
+        flex: 0 0 100%;
+        margin-top: 0.5rem;
     }
 }

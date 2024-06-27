@@ -32,15 +32,19 @@ class Brain:
 
     def process_input(self, user_input: str, progress_callback: callable) -> str:
         try:
-            progress_callback("Initiating cognitive processes...")
+            progress_callback(f"Initiating cognitive processes...")
             
             initial_response = self._get_initial_response(user_input, progress_callback)
+            progress_callback(f"1st Primary language model response received. Processing lobes... {initial_response}")
             lobe_responses = self._process_lobes(user_input, initial_response, progress_callback)
-            memory_context = self._integrate_memory(user_input, initial_response, lobe_responses)
+            progress_callback(f"Lobe processing complete.{lobe_responses}")
+
+            memory_context = self._integrate_memory(user_input, initial_response, lobe_responses, progress_callback)
+            progress_callback(f"Memory integration complete.")
             sentiment = analyze_sentiment(user_input)
             
             final_response = self._generate_final_response(
-                user_input, initial_response, lobe_responses, memory_context, sentiment
+                user_input, initial_response, lobe_responses, memory_context, sentiment, progress_callback
             )
             
             progress_callback("Cognitive processing complete. Formulating response...")
@@ -53,29 +57,36 @@ class Brain:
     def _get_initial_response(self, user_input: str, progress_callback: callable) -> str:
         progress_callback("Engaging primary language model...")
         initial_prompt = self._construct_initial_prompt(user_input)
-        return self.api_calls.chat(initial_prompt)
+        return self.api_calls.chat(initial_prompt, progress_callback=progress_callback)
 
     def _process_lobes(self, user_input: str, initial_response: str, progress_callback: callable) -> Dict[str, Any]:
         lobe_responses = {}
         for lobe_name, lobe in self.lobes_processing.lobes.items():
             progress_callback(f"Activating {lobe_name} neural pathway...")
-            response = lobe.process(user_input)
+            combined_input = f"{user_input}\n{initial_response if initial_response else ''}"
+
+            response = lobe.process(combined_input)
             lobe_responses[lobe_name] = response
         return lobe_responses
 
-    def _integrate_memory(self, user_input: str, initial_response: str, lobe_responses: Dict[str, Any]) -> str:
+    def _integrate_memory(self, user_input: str, initial_response: str, lobe_responses: Dict[str, Any], progress_callback: callable) -> str:
+        progress_callback("Integrating memory and context...")
         combined_input = f"{user_input}\n{initial_response}\n{json.dumps(lobe_responses)}"
         embedding = generate_embedding(combined_input, self.embeddings_model, self.collection, self.collection_size)
         add_to_memory(combined_input, self.embeddings_model, self.collection, self.collection_size)
-        return " ".join(retrieve_relevant_memory(embedding, self.collection))
+        relevant_memory = retrieve_relevant_memory(embedding, self.collection)
+        progress_callback("Memory integration complete.")
+        return " ".join(relevant_memory)
 
     def _generate_final_response(self, user_input: str, initial_response: str, 
-                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float) -> str:
+                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float, progress_callback: callable) -> str:
+        progress_callback("Generating final response...")
         context = self._construct_final_prompt(user_input, initial_response, lobe_responses, memory_context, sentiment)
-        final_response = self.api_calls.chat(context)
+        final_response = self.api_calls.chat(context, progress_callback=progress_callback)
         self.last_response = final_response
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": final_response})
+        progress_callback("Final response generated.")
         return final_response
 
     def _construct_initial_prompt(self, user_input: str) -> str:
@@ -90,8 +101,6 @@ class Brain:
         User Input: "{user_input}"
         ######## end_user_input#######
 
-
-
         your tool call:
         """
 
@@ -99,42 +108,33 @@ class Brain:
                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float) -> str:
         return f"""As AURORA, an advanced AI with multi-faceted cognitive capabilities, synthesize the following information to formulate a comprehensive response:
 
-User Input: "{user_input}"
+                User Input: "{user_input}"
 
-tool use results: {initial_response}
+                tool use results: {initial_response}
 
-Lobe Processing Results:
-{json.dumps(lobe_responses, indent=2)}
+                Lobe Processing Results:
+                {json.dumps(lobe_responses, indent=2)}
 
-Relevant Memory Context: {memory_context}
+                Relevant Memory Context: {memory_context}
 
-Detected Sentiment: {sentiment}
+                Detected Sentiment: {sentiment}
 
-Based on this information, generate a response that addresses the user's input comprehensively. Your response should:
+                Based on this information, generate a response that addresses the user's input comprehensively. Your response should:
 
-1. Directly address the user's main point or question
-2. Incorporate relevant insights from the lobe processing results
-3. Utilize any pertinent information from the memory context
-4. Adjust your tone based on the detected sentiment
-5. If necessary, suggest or initiate the use of additional tools or processes to better assist the user
+                1. Directly address the user's main point or question
+                2. Incorporate relevant insights from the lobe processing results
+                3. Utilize any pertinent information from the memory context
+                4. Adjust your tone based on the detected sentiment
+                5. If necessary, suggest or initiate the use of additional tools or processes to better assist the user
 
-Remember to maintain a coherent narrative throughout your response, ensuring that all parts contribute to a unified and helpful answer. If you need to use any tools or perform additional actions, incorporate them naturally into your response.
+                Remember to maintain a coherent narrative throughout your response, ensuring that all parts contribute to a unified and helpful answer. If you need to use any tools or perform additional actions, incorporate them naturally into your response.
 
-Example Structure:
-1. Acknowledgment of the user's input
-2. Main response addressing the core issue
-3. Integration of relevant lobe insights and memory context
-4. Suggestions for further actions or tool usage if applicable
-5. Conclusion or follow-up question to ensure user satisfaction
-Be as friendly and conversationally concise and to the point but also informative as possible in your response.
-use emojis to make the response more engaging and human-like. 
-
-#####BEGIN_USER_input_TO_YOU#####
-User Input: "{user_input}"
-#####END_USER_input_TO_YOU#####
-
-#####BEGIN_YOU_TO_USER#####
-Begin your response now:
+                Example Structure:
+                1. Acknowledgment of the user's input
+                2. Main response addressing the core issue or question
+                3. Conclusion or follow-up question to ensure user satisfaction
+                Be as friendly and conversationally concise and to the point but also informative as possible in your response.
+                use emojis to make the response more engaging and human-like.
 """
 
     def get_detailed_info(self):

@@ -36,9 +36,7 @@ class LLM_API_Calls:
         self.start_time = time.time()
         self.available_functions = {
             "run_local_command": self.run_local_command,
-            "web_research": self.web_research_tool.web_research,
-            "analyze_image": self.analyze_image,
-            "check_os_default_calendar": self.check_os_default_calendar
+            "web_research": self.web_research_tool.web_research
         }
         self.interaction_count = 0
         self.max_interactions = 10
@@ -75,45 +73,34 @@ class LLM_API_Calls:
         return self.encoding.decode(tokens[:max_tokens]) if len(tokens) > max_tokens else text
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def check_os_default_calendar(self, date=None, time=None, event_title=None, event_description=None):
-        try:
-            if date and event_title:
-                command = f'powershell.exe New-Event -Title "{event_title}"'
-                if time:
-                    command += f' -StartDate "{date}T{time}:00"'
-                else:
-                    command += f' -StartDate "{date}"'
-                if event_description:
-                    command += f' -Description "{event_description}"'
-                subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-                output = f"Event '{event_title}' created on {date}."
-            else:
-                command = 'powershell.exe Get-Event | Where-Object { $_.StartDate -eq [datetime]::Today }'
-                result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
-                output = result.stdout
-            return {"output": output, "datetime": get_current_datetime()}
-        except subprocess.CalledProcessError as e:
-            return {"error": f"Command execution failed: {e.stderr}", "datetime": get_current_datetime()}
-        except Exception as e:
-            return {"error": str(e), "datetime": get_current_datetime()}
-
-    @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def run_local_command(self, command):
+    def run_local_command(self, command, progress_callback=None):
+        if progress_callback:
+            progress_callback(f"Executing local command: {command}")
         try:
             result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
             output = result.stdout
+            if progress_callback:
+                progress_callback(f"Local command executed successfully")
             return {"command": command, "output": output, "datetime": get_current_datetime()}
         except subprocess.CalledProcessError as e:
+            if progress_callback:
+                progress_callback(f"Error executing local command: {e.stderr}")
             return {"command": command, "error": f"Command execution failed: {e.stderr}", "datetime": get_current_datetime()}
         except Exception as e:
+            if progress_callback:
+                progress_callback(f"Unexpected error during local command execution: {str(e)}")
             return {"command": command, "error": str(e), "datetime": get_current_datetime()}
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def analyze_image(self, image_url):
+    def analyze_image(self, image_url, progress_callback=None):
+        if progress_callback:
+            progress_callback(f"Analyzing image: {image_url}")
         try:
             if os.path.exists(image_url):
                 description = self.image_vision.analyze_image(image_url)
             elif image_url.startswith("http"):
+                if progress_callback:
+                    progress_callback("Downloading image from URL")
                 response = requests.get(image_url, timeout=10)
                 response.raise_for_status()
                 temp_file = 'temp_image.jpg'
@@ -123,15 +110,24 @@ class LLM_API_Calls:
                 os.remove(temp_file)
             else:
                 raise ValueError("Invalid image URL or path")
+            if progress_callback:
+                progress_callback("Image analysis completed")
             return {"image_url": image_url, "description": description, "datetime": get_current_datetime()}
         except RequestException as e:
+            if progress_callback:
+                progress_callback(f"Failed to fetch image: {str(e)}")
             return {"error": f"Failed to fetch image: {str(e)}", "datetime": get_current_datetime()}
         except Exception as e:
+            if progress_callback:
+                progress_callback(f"Error during image analysis: {str(e)}")
             return {"error": str(e), "datetime": get_current_datetime()}
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def chat(self, prompt):
+    def chat(self, prompt, progress_callback=None):
         self.reset_token_usage()
+
+        if progress_callback:
+            progress_callback("Preparing chat messages")
 
         messages = [
             {"role": "system", "content": f"""
@@ -146,6 +142,9 @@ class LLM_API_Calls:
 
         try:
             self.check_rate_limit()
+            
+            if progress_callback:
+                progress_callback("Sending request to language model")
             
             if isinstance(self.client, OpenAI) or isinstance(self.client, Groq):
                 response = self.client.chat.completions.create(
@@ -169,17 +168,24 @@ class LLM_API_Calls:
                 response_message = response['message']
                 tool_calls = response_message.get('tool_calls', [])
 
+            if progress_callback:
+                progress_callback("Received response from language model")
+
             self.chat_history.append({"role": "assistant", "content": response_message.content})
             self.update_token_usage(messages, response_message.content)
 
             if tool_calls:
+                if progress_callback:
+                    progress_callback("Processing tool calls")
                 for tool_call in tool_calls:
                     function_name = tool_call.function.name
                     function_to_call = self.available_functions.get(function_name)
                     if function_to_call is None:
                         raise ValueError(f"Unknown function: {function_name}")
                     function_args = json.loads(tool_call.function.arguments)
-                    function_response = function_to_call(**function_args)
+                    if progress_callback:
+                        progress_callback(f"Executing function: {function_name}")
+                    function_response = function_to_call(**function_args, progress_callback=progress_callback)
                     
                     tool_response = {
                         "tool_call_id": tool_call.id,
@@ -192,6 +198,8 @@ class LLM_API_Calls:
 
                 messages.extend(self.chat_history[-2:])  # Add assistant's response and tool response
 
+                if progress_callback:
+                    progress_callback("Generating final response based on tool results")
                 second_response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
@@ -205,12 +213,18 @@ class LLM_API_Calls:
                 self.chat_history.append({"role": "assistant", "content": second_response_content})
                 self.update_token_usage(messages, second_response_content)
                 
+                if progress_callback:
+                    progress_callback("Final response generated")
                 return second_response_content
             else:
+                if progress_callback:
+                    progress_callback("Response generated without tool use")
                 return response_message.content
 
         except Exception as e:
             error_message = f"Error in chat: {str(e)}"
+            if progress_callback:
+                progress_callback(f"Error occurred: {error_message}")
             print(error_message)
             return {"error": error_message, "datetime": get_current_datetime()}
 
