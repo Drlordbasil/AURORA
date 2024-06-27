@@ -79,4 +79,16 @@ tools = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "do_nothing",
+            "description": "A tool that does nothing. use this to skip tool use if no tool is needed. IE: hi or any normal conversation.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
 ]

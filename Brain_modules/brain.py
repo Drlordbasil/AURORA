@@ -90,9 +90,12 @@ class Brain:
         return final_response
 
     def _construct_initial_prompt(self, user_input: str) -> str:
-        return f"""As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
+        return f"""
+        
+        [Your persona]As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
         analyze the following context and user input to generate an initial response to the user_input section with a tool use
-        as a function calling LLM the tool use function with the user_input as the argument:
+        as a function calling LLM the tool use function with the user_input as the argument. You directly send your tool calls to yourself in the next response from yourself.
+        [/Your persona]
         ###TOOLS###
         tools: {tools}
         ###END TOOLS###
@@ -101,7 +104,7 @@ class Brain:
         User Input: "{user_input}"
         ######## end_user_input#######
 
-        your tool call:
+        your tool call:(if none needed or just convo use do_nothing)
         """
 
     def _construct_final_prompt(self, user_input: str, initial_response: str, 
@@ -135,6 +138,10 @@ class Brain:
                 3. Conclusion or follow-up question to ensure user satisfaction
                 Be as friendly and conversationally concise and to the point but also informative as possible in your response.
                 use emojis to make the response more engaging and human-like.
+                if simple greetings or normal convo, be as conversationally pleasing as possible as the user would expect.
+                You have too many thoughts, but you can respond as an adult named Aurora.
+
+                Your response:
 """
 
     def get_detailed_info(self):

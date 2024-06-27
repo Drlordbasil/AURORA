@@ -36,7 +36,8 @@ class LLM_API_Calls:
         self.start_time = time.time()
         self.available_functions = {
             "run_local_command": self.run_local_command,
-            "web_research": self.web_research_tool.web_research
+            "web_research": self.web_research_tool.web_research,
+            "do_nothing": self.do_nothing
         }
         self.interaction_count = 0
         self.max_interactions = 10
@@ -121,6 +122,11 @@ class LLM_API_Calls:
             if progress_callback:
                 progress_callback(f"Error during image analysis: {str(e)}")
             return {"error": str(e), "datetime": get_current_datetime()}
+
+    def do_nothing(self, progress_callback=None):
+        if progress_callback:
+            progress_callback("Executing do nothing tool")
+        return {"result": "Nothing was done", "datetime": get_current_datetime()}
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
     def chat(self, prompt, progress_callback=None):
