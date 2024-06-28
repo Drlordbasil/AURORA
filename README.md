@@ -1,3 +1,4 @@
+HOSTED DEMOS COMING EVENTUALLY! Right now its a flask app.
 
 # AURORA (Artificial Unified Responsive Optimized Reasoning Agent) - AI Chatbot with Brain-like lobe Functions
 
