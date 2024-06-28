@@ -18,14 +18,14 @@ import networkx as nx
 class SelectorRL:
     def __init__(self):
         self.selectors = {
-            "google": {
-                "search_box": ["input[name='q']", "textarea[name='q']", "#search-input"],
-                "result": ["div.g", "div.tF2Cxc", "div.yuRUbf"]
-            },
-            "bing": {
-                "search_box": ["input[name='q']", "#sb_form_q"],
-                "result": ["li.b_algo", "div.b_title", "h2"]
-            },
+            # "google": {
+            #     "search_box": ["input[name='q']", "textarea[name='q']", "#search-input"],
+            #     "result": ["div.g", "div.tF2Cxc", "div.yuRUbf"]
+            # },
+            # "bing": {
+            #     "search_box": ["input[name='q']", "#sb_form_q"],
+            #     "result": ["li.b_algo", "div.b_title", "h2"]
+            # },
             "brave": {
                 "search_box": ["input[name='q']", "#searchbox"],
                 "result": ["div.snippet", "div.fdb", "div.result"]
@@ -211,8 +211,8 @@ class WebResearchTool:
 
         combined_query = query
         search_engines = [
-            ("https://www.google.com/search", "google"),
-            ("https://www.bing.com/search", "bing"),
+            # ("https://www.google.com/search", "google"),
+            # ("https://www.bing.com/search", "bing"),
             ("https://search.brave.com/search", "brave")
         ]
         search_results = []
@@ -343,3 +343,6 @@ class WebResearchTool:
             progress_callback("Web research completed.")
 
         return aggregated_content.strip() if aggregated_content else f"Unable to retrieve relevant content for the query: {combined_query}"
+# test = WebResearchTool()
+# print(test.web_research("Python programming practices"))
+# print("Done")
