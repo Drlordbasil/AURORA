@@ -67,11 +67,12 @@ class Brain:
             return error_message
 
     def _get_initial_response(self, user_input: str) -> Tuple[str, List[Any]]:
-        self.progress_callback("Engaging primary language model...")
+        self.progress_callback("Initiating primary language model response...")
         initial_prompt = self._construct_initial_prompt(user_input)
-        system_message = self._construct_system_message()
-        response, tool_calls = llm_api_calls.chat(initial_prompt, system_message, tools, progress_callback=self.progress_callback)
-        return response, tool_calls
+        initial_response, tool_calls = llm_api_calls.chat(initial_prompt, "", tools, progress_callback=self.progress_callback)
+        self.chat_history.append({"role": "user", "content": user_input})
+        self.chat_history.append({"role": "assistant", "content": initial_response})
+        return initial_response, tool_calls
 
     def _process_tool_calls(self, tool_calls):
         tool_responses = {}
@@ -109,7 +110,7 @@ class Brain:
         system_message = self._construct_system_message()
         final_response, _ = llm_api_calls.chat(context, system_message, tools, progress_callback=self.progress_callback)
         if not final_response:
-            final_response = "I apologize, but I couldn't generate a response. How else can I assist you?"
+            final_response = self._construct_final_prompt(user_input, initial_response, lobe_responses, memory_context, sentiment)
         self.last_response = final_response
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": final_response})
