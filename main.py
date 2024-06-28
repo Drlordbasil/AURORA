@@ -23,7 +23,7 @@ brain = Brain(progress_queue.put)
 aurora_recorder = AuroraRecorder()
 
 def update_progress(message):
-    """Update the progress queue with a new message."""
+    """Update the progress queue with a new message in chat for updates."""
     logging.debug(f"Progress update: {message}")
     progress_queue.put(message)
 
