@@ -1,5 +1,33 @@
 HOSTED DEMOS COMING EVENTUALLY! Right now its a flask app.
+Models from ollama, download these before running:
+```
+ollama pull llama3:instruct
+ollama pull llava-llama3
+ollama pull mxbai-embed-large
+```
+install this requirements.txt as per usual shiz:
+```
+pip install -r requirements.txt 
+```
+it should be as simple as running:
+```
+python main.py
+```
 
+and then going to the url output in your terminal.
+
+ollama is the default, but you can change to groq or openai if you have the credentials set as env variables
+```
+OPENAI_API_KEY=(OPTIONAL)
+GROQ_API_KEY=(OPTIONAL)
+DEEPGRAM_API_KEY=(OPTIONAL FOR TTS)
+```
+
+This script aims to develop a deep lobe connection to an LLM, end goal is to make it autonomously do tasks until it thinks it cant do anything else then reply to you. The web research feature and its lobes with vision is its strengths in my personal opinion.
+each lobe will become its own model trained  to help AURORA specifically.
+Thanks for the support in any form!
+BELOW THIS LINE IS STILL OUTDATED SORTA:
+##############################################################3
 # AURORA (Artificial Unified Responsive Optimized Reasoning Agent) - AI Chatbot with Brain-like lobe Functions
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

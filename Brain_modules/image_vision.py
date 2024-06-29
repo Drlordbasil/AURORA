@@ -29,20 +29,37 @@ class ImageVision:
             image_path = "temp_image.jpg"
             self.save_image(image, image_path)
 
+            description = self._analyze_with_ollama(image_path)
+            os.remove(image_path)
+
+            return description
+        except Exception as e:
+            return f"Error analyzing image: {str(e)}"
+
+    def analyze_local_image(self, image_path):
+        try:
+            if not os.path.exists(image_path):
+                raise FileNotFoundError(f"Image file not found: {image_path}")
+
+            description = self._analyze_with_ollama(image_path)
+            return description
+        except Exception as e:
+            return f"Error analyzing local image: {str(e)}"
+
+    def _analyze_with_ollama(self, image_path):
+        try:
             res = ollama.chat(
                 model="llava-llama3",
                 messages=[
                     {
                         'role': 'user',
-                        'content': 'Describe this image in extremely verbose robust detail using a large vocabulary:',
+                        'content': 'Describe this as aurora. I want to know what is in this image concisely yet if its your chat interface just say user is chatting with me.',
                         'images': [image_path]
                     }
                 ]
             )
 
             image_description = res['message']['content']
-            os.remove(image_path)
-
             return image_description
         except Exception as e:
-            return f"Error analyzing image: {str(e)}"
+            raise Exception(f"Error in Ollama image analysis: {str(e)}")

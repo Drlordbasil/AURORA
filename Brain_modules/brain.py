@@ -2,7 +2,7 @@ import json
 import time
 import os
 from typing import Dict, Any, List, Tuple
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from Brain_modules.llm_api_calls import llm_api_calls, tools
 from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrieve_relevant_memory
 from Brain_modules.sentiment_analysis import analyze_sentiment
@@ -43,13 +43,17 @@ class Brain:
         try:
             self.progress_callback("Initiating cognitive processes...")
             
-            # Capture screenshot for context
             screenshot_description = self._capture_and_analyze_screenshot()
-            self.progress_callback("Screenshot captured and analyzed.")
-
-            initial_response, tool_calls = self._get_initial_response(user_input, screenshot_description)
+            self.progress_callback(f"")
+            self._integrate_memory(user_input, "", {}, screenshot_description)
+            combined_input = f"{user_input}\nContext from screenshot: {screenshot_description}"
+            initial_response, tool_calls = self._get_initial_response(user_input, combined_input)
             self.progress_callback(f"Primary language model response received. Processing lobes... {initial_response}")
-            
+            self.progress_callback(f"Tool calls: {tool_calls}")
+            self.progress_callback(f"")
+            self.chat_history.append({"role": "user", "content": user_input})
+            self.chat_history.append({"role": "assistant", "content": initial_response})
+
             if tool_calls:
                 tool_responses = self._process_tool_calls(tool_calls)
                 self.progress_callback(f"Tool calls processed: {tool_responses}")
@@ -71,60 +75,40 @@ class Brain:
         except Exception as e:
             error_message = f"Cognitive error encountered: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
             self.progress_callback(error_message)
-            return f"I apologize, but I encountered an unexpected error while processing your request. Here's what happened: {error_message}. How else can I assist you?"
+            return f"An unexpected error occurred while processing your request. Please try again or rephrase your input."
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
     def _capture_and_analyze_screenshot(self):
         try:
             screenshot = pyautogui.screenshot()
-            screenshot_path = "temp_screenshot.png"
+            screenshot_path = os.path.abspath("temp_screenshot.png")
             screenshot.save(screenshot_path)
-            description = self.image_vision.analyze_image(screenshot_path)
+            image_description = self.image_vision.analyze_local_image(screenshot_path)
             os.remove(screenshot_path)
-            return description
+            return image_description
         except Exception as e:
             self.progress_callback(f"Error capturing or analyzing screenshot: {str(e)}")
-            return "Unable to capture or analyze screenshot."
+            return "Unable to capture or analyze screenshot. Continuing without visual context."
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
     def _attempt_llm_call(self, initial_prompt, system_message):
-        return llm_api_calls.chat(initial_prompt, system_message, tools, progress_callback=self.progress_callback)
+        response, tool_calls = llm_api_calls.chat(initial_prompt, system_message, tools, progress_callback=self.progress_callback)
+        if not response or len(response.strip()) == 0:
+            raise ValueError("Empty response received from LLM")
+        return response, tool_calls
 
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
     def _get_initial_response(self, user_input: str, screenshot_description: str) -> Tuple[str, List[Any]]:
         self.progress_callback("Initiating primary language model response...")
         initial_prompt = self._construct_initial_prompt(user_input, screenshot_description)
         system_message = self._construct_system_message()
         
-        try:
-            initial_response, tool_calls = self._attempt_llm_call(initial_prompt, system_message)
-        except Exception as e:
-            self.progress_callback(f"Error in LLM API call after retries: {str(e)}")
-            initial_response = self._generate_fallback_response(user_input)
-            tool_calls = []
-
-        if not initial_response or initial_response == "I apologize, but I couldn't generate a response. How else can I assist you?":
-            initial_response = self._generate_fallback_response(user_input)
+        initial_response, tool_calls = self._attempt_llm_call(initial_prompt, system_message)
 
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": initial_response})
         
         return initial_response, tool_calls
-
-    def _generate_fallback_response(self, user_input: str) -> str:
-        words = user_input.lower().split()
-        
-        if any(word in words for word in ['hi', 'hello', 'hey']):
-            return "Hello! I'm here to assist you. What would you like to know or discuss today?"
-        
-        if any(word in words for word in ['help', 'assist', 'support']):
-            return "I'm here to help! Could you please provide more details about what you need assistance with?"
-        
-        if '?' in user_input:
-            return "I understand you've asked a question, but I'm having trouble generating a specific answer. Could you rephrase your question or provide more context?"
-        
-        if len(words) < 5:
-            return f"I see that you've provided a brief input: '{user_input}'. Could you please elaborate on what you'd like to know or discuss?"
-        
-        return f"I apologize, but I'm having difficulty generating a specific response to your input: '{user_input}'. Could you please provide more context or rephrase your request? I'm here to assist you with a wide range of topics and tasks."
 
     def _process_tool_calls(self, tool_calls):
         tool_responses = {}
@@ -138,14 +122,16 @@ class Brain:
         return tool_responses
 
     def _process_lobes(self, user_input: str, initial_response: str, screenshot_description: str) -> Dict[str, Any]:
-        lobe_responses = {}
-        for lobe_name, lobe in self.lobes_processing.lobes.items():
-            self.progress_callback(f"Activating {lobe_name} neural pathway...")
-            combined_input = f"{user_input}\n{initial_response}\nContext from screenshot: {screenshot_description}"
-            response = lobe.process(combined_input)
-            lobe_responses[lobe_name] = response
-        return lobe_responses
+        self.progress_callback("Processing lobes...")
+        combined_input = f"{user_input}\n{initial_response}\nContext from screenshot: {screenshot_description}"
+        
+        # Process all lobes
+        comprehensive_thought = self.lobes_processing.process_all_lobes(combined_input)
+        
+        self.progress_callback("Lobe processing complete.")
+        return comprehensive_thought
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
     def _integrate_memory(self, user_input: str, initial_response: str, lobe_responses: Dict[str, Any], screenshot_description: str) -> str:
         self.progress_callback("Integrating memory and context...")
         combined_input = f"{user_input}\n{initial_response}\n{json.dumps(lobe_responses)}\nContext from screenshot: {screenshot_description}"
@@ -153,16 +139,21 @@ class Brain:
         add_to_memory(combined_input, self.embeddings_model, self.collection, self.collection_size)
         relevant_memory = retrieve_relevant_memory(embedding, self.collection)
         self.progress_callback("Memory integration complete.")
-        return " ".join(relevant_memory)
+        return " ".join(str(item) for item in relevant_memory if item is not None)
 
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
     def _generate_final_response(self, user_input: str, initial_response: str, 
-                                 lobe_responses: Dict[str, Any], memory_context: str, sentiment: float, screenshot_description: str) -> str:
+                                 lobe_responses: Dict[str, Any], memory_context: str, 
+                                 sentiment: Dict[str, float], screenshot_description: str) -> str:
         self.progress_callback("Generating final response...")
-        context = self._construct_final_prompt(user_input, initial_response, lobe_responses, memory_context, sentiment, screenshot_description)
+        context = self._construct_final_prompt(user_input, initial_response, lobe_responses, 
+                                               memory_context, sentiment, screenshot_description)
         system_message = self._construct_system_message()
-        final_response, _ = llm_api_calls.chat(context, system_message, tools, progress_callback=self.progress_callback)
-        if not final_response:
-            final_response = self._construct_final_prompt(user_input, initial_response, lobe_responses, memory_context, sentiment, screenshot_description)
+        final_response, _ = llm_api_calls.chat(context, system_message, tools, 
+                                               progress_callback=self.progress_callback)
+        if not final_response or len(final_response.strip()) == 0:
+            raise ValueError("Empty final response received from LLM")
+        
         self.last_response = final_response
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": final_response})
@@ -176,24 +167,33 @@ class Brain:
     def _construct_initial_prompt(self, user_input: str, screenshot_description: str) -> str:
         return f"""
         As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
-        analyze the following context and user input to generate an initial response to the user_input section with a tool use
-        as a function calling LLM the tool use function with the user_input as the argument. You directly send your tool calls to yourself in the next response from yourself.
+        analyze the following context and user input to generate an initial response. Your goal is to provide a helpful, specific, and engaging response that addresses the user's needs.
 
         User Input: "{user_input}"
         
         Context from current screenshot: {screenshot_description}
 
-        Your task is to analyze this input and visual context to determine if any tool use is necessary. If needed, use the appropriate tool. If no tool is needed or if it's just a normal conversation, use the 'do_nothing' tool.
+        Your task is to:
+        1. Understand the user's request and its context.
+        2. If the request is clear and straightforward, provide a direct and helpful response.
+        3. If the request is complex or unclear:
+           a. Break it down into smaller, manageable parts.
+           b. Ask clarifying questions if necessary.
+           c. Provide initial thoughts or a high-level approach to addressing the request.
+        4. Consider if any tools could be helpful in responding to the user's input.
+        5. If no tool is needed or if it's just a normal conversation, use the 'do_nothing' tool.
+
+        Remember to be friendly, informative, and engaging in your response. Use your vast knowledge base to provide accurate and helpful information.
 
         Respond with your analysis and any tool calls you deem necessary.
         tool list: {json.dumps(tools, indent=2)}
 
-
-your tool calls:
+        Your response:
         """
 
     def _construct_final_prompt(self, user_input: str, initial_response: str, 
-                                lobe_responses: Dict[str, Any], memory_context: str, sentiment: float, screenshot_description: str) -> str:
+                                lobe_responses: Dict[str, Any], memory_context: str, 
+                                sentiment: Dict[str, float], screenshot_description: str) -> str:
         return f"""As AURORA, an advanced AI with multi-faceted cognitive capabilities, synthesize the following information to formulate a comprehensive response:
 
                 User Input: "{user_input}"
@@ -205,14 +205,17 @@ your tool calls:
 
                 Relevant Memory Context: {memory_context}
 
-                Detected Sentiment: {sentiment}
+                Detected Sentiment: Polarity: {sentiment['polarity']}, Subjectivity: {sentiment['subjectivity']}
 
                 Visual Context: {screenshot_description}
 
                 Based on this information, generate a response that addresses the user's input comprehensively. Your response should:
 
                 1. Directly address the user's main point or question
-                2. Incorporate relevant insights from the lobe processing results
+                2. Incorporate relevant insights from the lobe processing results, including:
+                   - The current integrated thought
+                   - Recent thought histories from different lobes
+                   - The overall thought process
                 3. Utilize any pertinent information from the memory context
                 4. Adjust your tone based on the detected sentiment
                 5. Consider the visual context provided by the screenshot description
@@ -222,8 +225,8 @@ your tool calls:
 
                 Example Structure:
                 1. Acknowledgment of the user's input and visual context
-                2. Main response addressing the core issue or question
-                3. Incorporation of relevant lobe insights and memory context
+                2. Main response addressing the core issue or question, incorporating lobe insights
+                3. Integration of memory context and overall thought process
                 4. Conclusion or follow-up question to ensure user satisfaction
                 Be as friendly and conversationally concise and to the point but also informative as possible in your response.
                 Use emojis to make the response more engaging and human-like.
@@ -241,4 +244,4 @@ your tool calls:
             }
             return json.dumps(detailed_info, indent=2)
         except Exception as e:
-            return f"Error retrieving detailed info: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
+            return f"Error retrieving detailed info: {str(e)} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
