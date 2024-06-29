@@ -18,9 +18,9 @@
                 <button id="tts-toggle" title="Toggle Text-to-Speech"><i class="fas fa-volume-up"></i></button>
                 <button id="record-button" title="Voice Input"><i class="fas fa-microphone"></i></button>
                 <select id="api-provider" title="Select API Provider" onchange="setModel(event)">
-                    <option value="Groq" selected>Groq</option>
+                    <option value="Groq" >Groq</option>
                     <option value="OpenAI">OpenAI</option>
-                    <option value="ollama">Ollama</option>
+                    <option value="ollama"selected>Ollama</option> # it defaults to ollama on backend.
                 </select>
                 
                 <script>

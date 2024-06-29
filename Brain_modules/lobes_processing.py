@@ -1,6 +1,4 @@
-import json
-import time
-import logging
+
 from queue import Queue
 from collections import defaultdict
 from datasets import load_dataset
@@ -87,7 +85,7 @@ class LobesProcessing:
             str: The cohesive inner voice.
         """
         cohesive_thought = ". ".join(responses)
-        return f"Inner Voice: {cohesive_thought}"
+        return f"Inner Voice from yoru lobes: {cohesive_thought}"
 
     def load_and_preprocess_dataset(self, dataset_name, split='train', percentage=0.01):
         """

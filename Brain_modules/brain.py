@@ -64,16 +64,26 @@ class Brain:
         except Exception as e:
             error_message = f"Cognitive error encountered: {e} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
             self.progress_callback(error_message)
-            return error_message
+            return f"I apologize, but I encountered an unexpected error while processing your request. Here's what happened: {error_message}. How else can I assist you?"
 
     def _get_initial_response(self, user_input: str) -> Tuple[str, List[Any]]:
         self.progress_callback("Initiating primary language model response...")
         initial_prompt = self._construct_initial_prompt(user_input)
-        initial_response, tool_calls = llm_api_calls.chat(initial_prompt, "", tools, progress_callback=self.progress_callback)
+        
+        try:
+            initial_response, tool_calls = llm_api_calls.chat(initial_prompt, "", tools, progress_callback=self.progress_callback)
+        except Exception as e:
+            self.progress_callback(f"Error in LLM API call: {str(e)}")
+            initial_response = f"I apologize, but I encountered an error while processing your request. Here's what I understood: {user_input}"
+            tool_calls = []
+
+        if not initial_response:
+            initial_response = f"I'm sorry, but I couldn't generate a specific response to your input: {user_input}. How else can I assist you?"
+
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": initial_response})
+        
         return initial_response, tool_calls
-
     def _process_tool_calls(self, tool_calls):
         tool_responses = {}
         for tool_call in tool_calls:
