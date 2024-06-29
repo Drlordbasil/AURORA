@@ -1,6 +1,7 @@
 import json
 import time
 from typing import Dict, Any, List, Tuple
+from tenacity import retry, stop_after_attempt, wait_exponential
 from Brain_modules.llm_api_calls import llm_api_calls, tools
 from Brain_modules.memory_utils import generate_embedding, add_to_memory, retrieve_relevant_memory
 from Brain_modules.sentiment_analysis import analyze_sentiment
@@ -66,24 +67,46 @@ class Brain:
             self.progress_callback(error_message)
             return f"I apologize, but I encountered an unexpected error while processing your request. Here's what happened: {error_message}. How else can I assist you?"
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _attempt_llm_call(self, initial_prompt):
+        return llm_api_calls.chat(initial_prompt, "", tools, progress_callback=self.progress_callback)
+
     def _get_initial_response(self, user_input: str) -> Tuple[str, List[Any]]:
         self.progress_callback("Initiating primary language model response...")
         initial_prompt = self._construct_initial_prompt(user_input)
         
         try:
-            initial_response, tool_calls = llm_api_calls.chat(initial_prompt, "", tools, progress_callback=self.progress_callback)
+            initial_response, tool_calls = self._attempt_llm_call(initial_prompt)
         except Exception as e:
-            self.progress_callback(f"Error in LLM API call: {str(e)}")
-            initial_response = f"I apologize, but I encountered an error while processing your request. Here's what I understood: {user_input}"
+            self.progress_callback(f"Error in LLM API call after retries: {str(e)}")
+            initial_response = self._generate_fallback_response(user_input)
             tool_calls = []
 
-        if not initial_response:
-            initial_response = f"I'm sorry, but I couldn't generate a specific response to your input: {user_input}. How else can I assist you?"
+        if not initial_response or initial_response == "I apologize, but I couldn't generate a response. How else can I assist you?":
+            initial_response = self._generate_fallback_response(user_input)
 
         self.chat_history.append({"role": "user", "content": user_input})
         self.chat_history.append({"role": "assistant", "content": initial_response})
         
         return initial_response, tool_calls
+
+    def _generate_fallback_response(self, user_input: str) -> str:
+        words = user_input.lower().split()
+        
+        if any(word in words for word in ['hi', 'hello', 'hey']):
+            return "Hello! I'm here to assist you. What would you like to know or discuss today?"
+        
+        if any(word in words for word in ['help', 'assist', 'support']):
+            return "I'm here to help! Could you please provide more details about what you need assistance with?"
+        
+        if '?' in user_input:
+            return "I understand you've asked a question, but I'm having trouble generating a specific answer. Could you rephrase your question or provide more context?"
+        
+        if len(words) < 5:
+            return f"I see that you've provided a brief input: '{user_input}'. Could you please elaborate on what you'd like to know or discuss?"
+        
+        return f"I apologize, but I'm having difficulty generating a specific response to your input: '{user_input}'. Could you please provide more context or rephrase your request? I'm here to assist you with a wide range of topics and tasks."
+
     def _process_tool_calls(self, tool_calls):
         tool_responses = {}
         for tool_call in tool_calls:
