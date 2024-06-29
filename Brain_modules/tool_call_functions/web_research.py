@@ -76,6 +76,8 @@ class WebResearchTool:
 
     def _initialize_webdriver(self):
         options = webdriver.ChromeOptions()
+        #headless mode
+        options.add_argument("--headless")
         service = ChromeService(ChromeDriverManager().install())
         return webdriver.Chrome(service=service, options=options)
 
