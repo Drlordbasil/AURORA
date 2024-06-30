@@ -63,4 +63,25 @@ tools = [
             },
         },
     },
+        {
+        "type": "function",
+        "function": {
+            "name": "call_expert",
+            "description": "A tool that can ask an expert in any field by providing the expertise and the question. The expert will answer the question.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expertise": {
+                        "type": "string",
+                        "description": "The expertise of the expert you need. IE: math, science, etc.",
+                    },
+                    "question": {
+                        "type": "string",
+                        "description": "The question you want to ask the expert.",
+                    },
+                },
+                "required": ["expertise", "question"],
+            },
+        },
+    },
 ]

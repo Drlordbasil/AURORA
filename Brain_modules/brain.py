@@ -48,11 +48,13 @@ class Brain:
             self._integrate_memory(user_input, "", {}, screenshot_description)
             combined_input = f"{user_input}\nContext from screenshot: {screenshot_description}"
             initial_response, tool_calls = self._get_initial_response(user_input, combined_input)
-            self.progress_callback(f"Primary language model response received. Processing lobes... {initial_response}")
+            self.progress_callback(f"Primary language model response received. Processing lobes... {initial_response if initial_response else tool_calls}")
             self.progress_callback(f"Tool calls: {tool_calls}")
             self.progress_callback(f"")
             self.chat_history.append({"role": "user", "content": user_input})
-            self.chat_history.append({"role": "assistant", "content": initial_response})
+            if initial_response:
+                self.chat_history.append({"role": "assistant", "content": initial_response})
+                initial_response    = initial_response
 
             if tool_calls:
                 tool_responses = self._process_tool_calls(tool_calls)

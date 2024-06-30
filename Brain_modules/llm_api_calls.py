@@ -14,6 +14,8 @@ from Brain_modules.define_tools import tools
 from requests.exceptions import RequestException
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from typing import Tuple, List, Any, Union, Dict
+from Brain_modules.tool_call_functions.do_nothing import do_nothing
+from Brain_modules.tool_call_functions.call_expert import call_expert
 
 MAX_TOKENS_PER_MINUTE = 5500
 MAX_RETRIES = 3
@@ -39,8 +41,9 @@ class LLM_API_Calls:
         self.available_functions = {
             "run_local_command": self.run_local_command,
             "web_research": self.web_research_tool.web_research,
-            "do_nothing": self.do_nothing,
-            "analyze_image": self.analyze_image
+            "do_nothing": do_nothing,
+            "analyze_image": self.analyze_image,
+            "call_expert": call_expert
         }
         self.interaction_count = 0
         self.max_interactions = 10
@@ -74,7 +77,7 @@ class LLM_API_Calls:
     def update_api_provider(self, provider):
         self.current_api_provider = provider
         self.setup_client()
-
+        
     def count_tokens(self, text):
         return len(self.encoding.encode(str(text)))
 
@@ -132,10 +135,6 @@ class LLM_API_Calls:
                 progress_callback(f"Error during image analysis: {str(e)}")
             return {"error": str(e), "datetime": get_current_datetime()}
 
-    def do_nothing(self, progress_callback=None):
-        if progress_callback:
-            progress_callback("Executing do nothing tool")
-        return {"result": "Nothing was done", "datetime": get_current_datetime()}
 
     def chat(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[Union[str, Dict[str, str]], List[Any]]:
         try:
@@ -198,7 +197,7 @@ class LLM_API_Calls:
             if progress_callback:
                 progress_callback("Received response from language model")
 
-            content = response_message.content or "I apologize, but I couldn't generate a response. How else can I assist you?"
+            content = response_message.content
             self.chat_history.append({"role": "assistant", "content": content})
             self.update_token_usage(messages, content)
 
