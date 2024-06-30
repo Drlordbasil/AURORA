@@ -50,35 +50,7 @@ tools = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "check_os_default_calendar",
-            "description": "Check the calendar for today or create a calendar event.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "date": {
-                        "type": "string",
-                        "description": "The date to check or create an event for (YYYY-MM-DD). Defaults to today if not provided.",
-                    },
-                    "time": {
-                        "type": "string",
-                        "description": "The time for the event (HH:MM). Optional.",
-                    },
-                    "event_title": {
-                        "type": "string",
-                        "description": "The title of the event. Optional.",
-                    },
-                    "event_description": {
-                        "type": "string",
-                        "description": "The description of the event. Optional.",
-                    },
-                },
-                "required": [],
-            },
-        },
-    },
+
     {
         "type": "function",
         "function": {

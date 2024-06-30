@@ -57,7 +57,7 @@ class LLM_API_Calls:
     def choose_API_provider(self):
         if self.current_api_provider == "OpenAI":
             api_key = os.environ.get("OPENAI_API_KEY") or input("Enter your OpenAI API key: ").strip()
-            model = os.environ.get("OPENAI_MODEL", "gpt-4-turbo")
+            model = os.environ.get("OPENAI_MODEL", "gpt-4o")
             client = OpenAI(api_key=api_key)
         elif self.current_api_provider == "ollama":
             api_key = "ollama"
