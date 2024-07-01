@@ -47,19 +47,9 @@ class Brain:
             self.progress_callback(f"")
             self._integrate_memory(user_input, "", {}, screenshot_description)
             combined_input = f"{user_input}\nContext from screenshot: {screenshot_description}"
-            initial_response, tool_calls = self._get_initial_response(user_input, combined_input)
-            self.progress_callback(f"Primary language model response received. Processing lobes... {initial_response if initial_response else tool_calls}")
-            self.progress_callback(f"Tool calls: {tool_calls}")
+            initial_response = self._get_initial_response(combined_input)
+            self.progress_callback(f"Primary language model response received. Processing lobes... {initial_response}")
             self.progress_callback(f"")
-            self.chat_history.append({"role": "user", "content": user_input})
-            if initial_response:
-                self.chat_history.append({"role": "assistant", "content": initial_response})
-                initial_response    = initial_response
-
-            if tool_calls:
-                tool_responses = self._process_tool_calls(tool_calls)
-                self.progress_callback(f"Tool calls processed: {tool_responses}")
-                initial_response += f"\nTool responses: {json.dumps(tool_responses)}"
 
             lobe_responses = self._process_lobes(user_input, initial_response, screenshot_description)
             self.progress_callback(f"Lobe processing complete. {lobe_responses}")
@@ -93,24 +83,25 @@ class Brain:
             return "Unable to capture or analyze screenshot. Continuing without visual context."
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
-    def _attempt_llm_call(self, initial_prompt, system_message):
-        response, tool_calls = llm_api_calls.chat(initial_prompt, system_message, tools, progress_callback=self.progress_callback)
-        if not response or len(response.strip()) == 0:
-            raise ValueError("Empty response received from LLM")
-        return response, tool_calls
-
-    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10), retry=retry_if_exception_type(Exception))
-    def _get_initial_response(self, user_input: str, screenshot_description: str) -> Tuple[str, List[Any]]:
+    def _get_initial_response(self, combined_input: str) -> str:
         self.progress_callback("Initiating primary language model response...")
-        initial_prompt = self._construct_initial_prompt(user_input, screenshot_description)
+        initial_prompt = self._construct_initial_prompt(combined_input)
         system_message = self._construct_system_message()
         
-        initial_response, tool_calls = self._attempt_llm_call(initial_prompt, system_message)
-
-        self.chat_history.append({"role": "user", "content": user_input})
-        self.chat_history.append({"role": "assistant", "content": initial_response})
+        response, tool_calls = llm_api_calls.chat(initial_prompt, system_message, tools, progress_callback=self.progress_callback)
         
-        return initial_response, tool_calls
+        if tool_calls:
+            tool_responses = self._process_tool_calls(tool_calls)
+            self.progress_callback(f"Tool calls processed: {tool_responses}")
+            response += f"\nTool responses: {json.dumps(tool_responses)}"
+
+        if not response or len(response.strip()) == 0:
+            raise ValueError("Empty response received from LLM")
+
+        self.chat_history.append({"role": "user", "content": combined_input})
+        self.chat_history.append({"role": "assistant", "content": response})
+        
+        return response
 
     def _process_tool_calls(self, tool_calls):
         tool_responses = {}
@@ -166,23 +157,21 @@ class Brain:
         return f"""You are {FinalAgentPersona.name}. {FinalAgentPersona.description}
         You have access to function calling and various tools to assist you. Be creative in your responses and use of tools."""
 
-    def _construct_initial_prompt(self, user_input: str, screenshot_description: str) -> str:
+    def _construct_initial_prompt(self, combined_input: str) -> str:
         return f"""
         As AURORA, an advanced AI with multi-faceted cognitive capabilities, 
         analyze the following context and user input to generate an initial response. Your goal is to provide a helpful, specific, and engaging response that addresses the user's needs.
 
-        User Input: "{user_input}"
-        
-        Context from current screenshot: {screenshot_description}
+        Input: "{combined_input}"
 
         Your task is to:
-        1. Understand the user's request and its context.
+        1. Understand the request and its context.
         2. If the request is clear and straightforward, provide a direct and helpful response.
         3. If the request is complex or unclear:
            a. Break it down into smaller, manageable parts.
            b. Ask clarifying questions if necessary.
            c. Provide initial thoughts or a high-level approach to addressing the request.
-        4. Consider if any tools could be helpful in responding to the user's input.
+        4. Consider if any tools could be helpful in responding to the input.
         5. If no tool is needed or if it's just a normal conversation, use the 'do_nothing' tool.
 
         Remember to be friendly, informative, and engaging in your response. Use your vast knowledge base to provide accurate and helpful information.

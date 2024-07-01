@@ -5,22 +5,19 @@ import time
 import requests
 from datetime import datetime
 from openai import OpenAI
-from groq import Groq
-import ollama
 import tiktoken
+from typing import List, Any, Dict, Union, Tuple
+from tenacity import retry, wait_random_exponential, stop_after_attempt, RetryError
+
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.tool_call_functions.web_research import WebResearchTool
-from Brain_modules.define_tools import tools
-from requests.exceptions import RequestException
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-from typing import Tuple, List, Any, Union, Dict
 from Brain_modules.tool_call_functions.do_nothing import do_nothing
 from Brain_modules.tool_call_functions.call_expert import call_expert
+from Brain_modules.define_tools import tools
 
 MAX_TOKENS_PER_MINUTE = 5500
 MAX_RETRIES = 3
 BACKOFF_FACTOR = 2
-from Brain_modules.final_agent_persona import FinalAgentPersona
 
 def get_current_datetime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -45,14 +42,12 @@ class LLM_API_Calls:
             "analyze_image": self.analyze_image,
             "call_expert": call_expert
         }
-        self.interaction_count = 0
-        self.max_interactions = 10
         self.rate_limit_remaining = MAX_TOKENS_PER_MINUTE
         self.rate_limit_reset = time.time() + 60
 
     def setup_client(self):
         try:
-            self.client, self.model = self.choose_API_provider()
+            self.client = self.choose_API_provider()
         except Exception as e:
             print(f"Error setting up client: {e}")
             raise
@@ -60,19 +55,17 @@ class LLM_API_Calls:
     def choose_API_provider(self):
         if self.current_api_provider == "OpenAI":
             api_key = os.environ.get("OPENAI_API_KEY") or input("Enter your OpenAI API key: ").strip()
-            model = os.environ.get("OPENAI_MODEL", "gpt-4o")
-            client = OpenAI(api_key=api_key)
+            self.model = os.environ.get("OPENAI_MODEL", "gpt-4")
+            return OpenAI(api_key=api_key)
         elif self.current_api_provider == "ollama":
-            api_key = "ollama"
-            model = os.environ.get("OLLAMA_MODEL", "llama3:instruct")
-            client = OpenAI(base_url="http://localhost:11434/v1", api_key=api_key)
+            self.model = os.environ.get("OLLAMA_MODEL", "llama3:instruct")
+            return OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
         elif self.current_api_provider == "Groq":
             api_key = os.environ.get("GROQ_API_KEY") or input("Enter your Groq API key: ").strip()
-            model = os.environ.get("GROQ_MODEL", "llama3-70b-8192")
-            client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
+            self.model = os.environ.get("GROQ_MODEL", "llama3-70b-8192")
+            return OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
         else:
             raise ValueError("Unsupported LLM Provider")
-        return client, model
 
     def update_api_provider(self, provider):
         self.current_api_provider = provider
@@ -85,7 +78,7 @@ class LLM_API_Calls:
         tokens = self.encoding.encode(str(text))
         return self.encoding.decode(tokens[:max_tokens]) if len(tokens) > max_tokens else text
 
-    @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
+    @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(MAX_RETRIES))
     def run_local_command(self, command, progress_callback=None):
         if progress_callback:
             progress_callback(f"Executing local command: {command}")
@@ -104,44 +97,23 @@ class LLM_API_Calls:
                 progress_callback(f"Unexpected error during local command execution: {str(e)}")
             return {"command": command, "error": str(e), "datetime": get_current_datetime()}
 
-    @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
+    @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(MAX_RETRIES))
     def analyze_image(self, image_url, progress_callback=None):
         if progress_callback:
             progress_callback(f"Analyzing image: {image_url}")
         try:
-            if os.path.exists(image_url):
-                description = self.image_vision.analyze_image(image_url)
-            elif image_url.startswith("http"):
-                if progress_callback:
-                    progress_callback("Downloading image from URL")
-                response = requests.get(image_url, timeout=10)
-                response.raise_for_status()
-                temp_file = 'temp_image.jpg'
-                with open(temp_file, 'wb') as file:
-                    file.write(response.content)
-                description = self.image_vision.analyze_image(temp_file)
-                os.remove(temp_file)
-            else:
-                raise ValueError("Invalid image URL or path")
+            description = self.image_vision.analyze_image(image_url)
             if progress_callback:
                 progress_callback("Image analysis completed")
             return {"image_url": image_url, "description": description, "datetime": get_current_datetime()}
-        except RequestException as e:
-            if progress_callback:
-                progress_callback(f"Failed to fetch image: {str(e)}")
-            return {"error": f"Failed to fetch image: {str(e)}", "datetime": get_current_datetime()}
         except Exception as e:
             if progress_callback:
                 progress_callback(f"Error during image analysis: {str(e)}")
             return {"error": str(e), "datetime": get_current_datetime()}
 
-
-    def chat(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[Union[str, Dict[str, str]], List[Any]]:
+    def chat(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[str, List[Any]]:
         try:
-            response, tool_calls = self._chat_with_retry(prompt, system_message, tools, progress_callback)
-            if not response:
-                response = "I apologize, but I couldn't generate a response. How else can I assist you?"
-            return response, tool_calls
+            return self._chat_loop(prompt, system_message, tools, progress_callback)
         except RetryError as e:
             error_message = f"Failed to get a response after {MAX_RETRIES} attempts: {str(e)}"
             if progress_callback:
@@ -153,55 +125,54 @@ class LLM_API_Calls:
                 progress_callback(error_message)
             return error_message, []
 
-    @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, max=10))
-    def _chat_with_retry(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[Union[str, Dict[str, str]], List[Any]]:
+    def _chat_loop(self, prompt: str, system_message: str, tools: List[dict], progress_callback=None) -> Tuple[str, List[Any]]:
+        messages = [{"role": "system", "content": system_message}]
+        messages.extend(self.chat_history[-5:])
+        messages.append({"role": "user", "content": prompt})
+
+        while True:
+            response = self._chat_with_retry(messages, tools, progress_callback)
+            
+            if response.get("tool_calls"):
+                tool_responses = self._process_tool_calls(response["tool_calls"], progress_callback)
+                messages.append({"role": "assistant", "content": response.get("content", "")})
+                messages.append({"role": "function", "name": "tool_response", "content": json.dumps(tool_responses)})
+                
+                reflection_prompt = self._generate_reflection_prompt(prompt, response.get("content", ""), tool_responses)
+                messages.append({"role": "user", "content": reflection_prompt})
+            else:
+                self.chat_history.extend(messages[1:])  # Add all new messages except the system message
+                return response["content"], response.get("tool_calls", [])
+
+    @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(MAX_RETRIES))
+    def _chat_with_retry(self, messages: List[Dict[str, str]], tools: List[dict], progress_callback=None) -> Dict[str, Any]:
         self.reset_token_usage()
 
         if progress_callback:
-            progress_callback("Preparing chat messages")
-
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "assistant", "content": self.chat_history[-1]['content'] if self.chat_history else "Hello! How can I help you today? I have various tool capabilities to assist you."},
-            {"role": "user", "content": prompt},
-        ]
+            progress_callback("Sending request to language model")
 
         try:
             self.check_rate_limit()
             
-            if progress_callback:
-                progress_callback("Sending request to language model")
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=tools,
+                tool_choice="auto",
+                max_tokens=self.max_tokens
+            )
             
-            if isinstance(self.client, OpenAI) or isinstance(self.client, Groq):
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=tools,
-                    tool_choice="auto",
-                    max_tokens=self.max_tokens
-                )
-                self.update_rate_limit(getattr(response, 'headers', {}))
-                response_message = response.choices[0].message
-                tool_calls = response_message.tool_calls or []
-
-            elif self.current_api_provider == "ollama":
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=tools,
-                    tool_choice="auto"
-                )
-                response_message = response.choices[0].message
-                tool_calls = response_message.tool_calls or []
+            self.update_rate_limit(getattr(response, 'headers', {}))
+            response_message = response.choices[0].message
 
             if progress_callback:
                 progress_callback("Received response from language model")
 
-            content = response_message.content
-            self.chat_history.append({"role": "assistant", "content": content})
+            content = response_message.content or ""
+            tool_calls = response_message.tool_calls or []
             self.update_token_usage(messages, content)
 
-            return content, tool_calls
+            return {"content": content, "tool_calls": tool_calls}
 
         except Exception as e:
             error_message = f"Error in chat: {str(e)}"
@@ -209,6 +180,40 @@ class LLM_API_Calls:
                 progress_callback(f"Error occurred: {error_message}")
             print(error_message)
             raise
+
+    def _process_tool_calls(self, tool_calls, progress_callback=None):
+        tool_responses = []
+        for tool_call in tool_calls:
+            function_name = tool_call.function.name
+            function_to_call = self.available_functions.get(function_name)
+            if function_to_call:
+                function_args = json.loads(tool_call.function.arguments)
+                function_response = function_to_call(**function_args, progress_callback=progress_callback)
+                tool_responses.append({
+                    "tool_name": function_name,
+                    "tool_response": function_response
+                })
+            else:
+                if progress_callback:
+                    progress_callback(f"Function {function_name} not found")
+        return tool_responses
+
+    def _generate_reflection_prompt(self, initial_prompt, initial_response, tool_responses):
+        tool_results = "\n".join([f"{resp['tool_name']}: {json.dumps(resp['tool_response'])}" for resp in tool_responses])
+        reflection_prompt = f"""
+        Initial user input: {initial_prompt}
+        Your initial response: {initial_response}
+        Tool usage results: {tool_results}
+        
+        Based on the initial user input, your initial response, and the results from the tools used, 
+        please provide a comprehensive response. Consider how the tool results affect your understanding 
+        of the user's request and how you can best address their needs. If you have enough information 
+        to answer the user's query, provide a final response. If not, you may use additional tools or 
+        ask for clarification.
+
+        Your reflection and response:
+        """
+        return reflection_prompt
 
     def update_token_usage(self, messages, response):
         tokens_used = sum(self.count_tokens(msg["content"]) for msg in messages) + self.count_tokens(response)
