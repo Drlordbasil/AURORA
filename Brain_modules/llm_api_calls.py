@@ -26,7 +26,7 @@ class LLM_API_Calls:
     def __init__(self):
         self.client = None
         self.model = None
-        self.current_api_provider = "ollama"
+        self.current_api_provider = "Groq"
         self.setup_client()
         self.image_vision = ImageVision()
         self.chat_history = []
