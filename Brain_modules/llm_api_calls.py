@@ -11,7 +11,7 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt, RetryEr
 
 from Brain_modules.image_vision import ImageVision
 from Brain_modules.tool_call_functions.web_research import WebResearchTool
-from Brain_modules.tool_call_functions.do_nothing import do_nothing
+
 from Brain_modules.tool_call_functions.call_expert import call_expert
 from Brain_modules.define_tools import tools
 
@@ -38,7 +38,7 @@ class LLM_API_Calls:
         self.available_functions = {
             "run_local_command": self.run_local_command,
             "web_research": self.web_research_tool.web_research,
-            "do_nothing": do_nothing,
+
             "analyze_image": self.analyze_image,
             "call_expert": call_expert
         }
